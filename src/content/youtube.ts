@@ -1,17 +1,46 @@
 const CONTENT_SELECTORS = [
-  "ytd-browse #contents > *",
-  "ytd-rich-grid-renderer #contents > *",
-  "ytd-watch-flexy #secondary-inner > *",
-  "ytd-watch-flexy #secondary",
+  "ytd-browse[page-subtype='home']",
+  "ytd-watch-flexy #related",
   "ytd-watch-next-secondary-results-renderer",
   "ytd-mini-guide-renderer",
   "ytd-guide-renderer",
   "tp-yt-app-drawer",
-  "ytd-browse #header",
-  "ytd-browse #chips",
-  "ytd-browse #chips-wrapper",
-  "ytd-browse yt-chip-cloud-renderer",
-  "ytd-browse ytd-feed-filter-chip-bar-renderer"
+  "ytd-browse[page-subtype='home'] #header",
+  "ytd-browse[page-subtype='home'] #chips",
+  "ytd-browse[page-subtype='home'] #chips-wrapper",
+  "ytd-browse[page-subtype='home'] yt-chip-cloud-renderer",
+  "ytd-browse[page-subtype='home'] ytd-feed-filter-chip-bar-renderer"
+] as const;
+
+const END_OF_VIDEO_SELECTORS = [
+  ".html5-endscreen",
+  ".ytp-ce-element.ytp-ce-element",
+  ".ytp-fullscreen-grid-stills-container",
+  ".ytp-endscreen-content",
+  ".ytp-videowall-still",
+  ".ytp-suggestion-set"
+] as const;
+
+const COMMENTS_SELECTORS = [
+  "ytd-watch-flexy #comments",
+  "ytd-watch-flexy #comment-teaser",
+  "ytd-comments-entry-point-header-renderer",
+  "ytd-engagement-panel-section-list-renderer[target-id='engagement-panel-comments-section']"
+] as const;
+
+const SEARCH_CLEANUP_SELECTORS = [
+  "div.sbdd_a",
+  ".searchbox-dropdown",
+  ".ytSearchboxComponentSuggestionsContainer",
+  "yt-searchbox-suggestions",
+  "yt-searchbox [role='listbox']",
+  "ytd-search ytd-search-pyv-renderer",
+  "ytd-search ytd-ad-slot-renderer",
+  "ytd-search ytd-promoted-video-renderer",
+  "ytd-search ytd-promoted-sparkles-web-renderer",
+  "ytd-search ytd-in-feed-ad-layout-renderer",
+  "ytd-search ytd-carousel-ad-renderer",
+  "ytd-search ytd-display-ad-renderer"
 ] as const;
 
 const SHORTS_CSS_SELECTORS = [
@@ -66,6 +95,24 @@ function installFeedBlocker(): void {
   style.id = STYLE_ID;
   style.textContent = `
     html[data-feed-remover-focus-mode="true"] ${CONTENT_SELECTORS.join(
+      ",\n    html[data-feed-remover-focus-mode=\"true\"] "
+    )} {
+      display: none !important;
+    }
+
+    html[data-feed-remover-focus-mode="true"] ${END_OF_VIDEO_SELECTORS.join(
+      ",\n    html[data-feed-remover-focus-mode=\"true\"] "
+    )} {
+      display: none !important;
+    }
+
+    html[data-feed-remover-focus-mode="true"] ${COMMENTS_SELECTORS.join(
+      ",\n    html[data-feed-remover-focus-mode=\"true\"] "
+    )} {
+      display: none !important;
+    }
+
+    html[data-feed-remover-focus-mode="true"] ${SEARCH_CLEANUP_SELECTORS.join(
       ",\n    html[data-feed-remover-focus-mode=\"true\"] "
     )} {
       display: none !important;
