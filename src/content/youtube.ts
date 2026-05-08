@@ -78,10 +78,7 @@ const SHORTS_CSS_SELECTORS = [
 ] as const;
 
 const INVISIBLE_LAYOUT_SELECTORS = [
-  "ytd-masthead #guide-button",
-  "ytd-masthead #voice-search-button",
-  "ytd-masthead #start",
-  "ytd-masthead ytd-notification-topbar-button-renderer"
+  "ytd-masthead #voice-search-button"
 ] as const;
 
 const STYLE_ID = "social-media-feed-remover-youtube";
@@ -173,23 +170,23 @@ function installFeedBlocker(): void {
     #${VISUAL_SHELL_ID} {
       display: none;
       position: fixed;
-      inset: 56px 0 0;
+      inset: 80px 0 0;
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
       background: #fff;
-      font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: Georgia, "Times New Roman", Times, serif;
     }
 
     #${VISUAL_SHELL_ID}::before {
       content: "";
       position: absolute;
-      inset: -2%;
+      inset: -1.4%;
       background-image:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.18) 18%, rgba(255, 255, 255, 0.04) 58%, rgba(255, 255, 255, 0.34) 100%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.42) 17%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.14) 100%),
         url("${backgroundImageUrl}");
       background-size: cover;
-      background-position: center;
+      background-position: center 54%;
       opacity: 1;
       transform: scale(1.01);
       animation: monk-mode-scenic-drift 96s ease-in-out infinite alternate;
@@ -201,9 +198,9 @@ function installFeedBlocker(): void {
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.11) 44%, transparent 58%),
-        radial-gradient(ellipse at 50% 34%, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.26) 30%, transparent 56%),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.06) 30%, rgba(255, 255, 255, 0.05) 70%, rgba(255, 255, 255, 0.48));
+        linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.08) 44%, transparent 58%),
+        radial-gradient(ellipse at 50% 34%, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.4) 24%, transparent 50%),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.02) 30%, rgba(255, 255, 255, 0.02) 70%, rgba(255, 255, 255, 0.24));
       background-size: 220% 100%, 100% 100%, 100% 100%;
       animation: monk-mode-light-drift 140s linear infinite;
       will-change: background-position;
@@ -211,13 +208,13 @@ function installFeedBlocker(): void {
 
     @keyframes monk-mode-scenic-drift {
       0% {
-        transform: scale(1.015) translate3d(-0.7%, -0.25%, 0);
-        background-position: 48% 50%;
+        transform: scale(1.01) translate3d(-0.45%, -0.12%, 0);
+        background-position: 49% 54%;
       }
 
       100% {
-        transform: scale(1.055) translate3d(0.7%, 0.28%, 0);
-        background-position: 52% 50%;
+        transform: scale(1.035) translate3d(0.45%, 0.14%, 0);
+        background-position: 51% 54%;
       }
     }
 
@@ -242,20 +239,78 @@ function installFeedBlocker(): void {
       display: none;
       width: min(1280px, calc(100vw - 72px));
       position: absolute;
-      top: 28vh;
+      top: 29.5vh;
       left: 50%;
       z-index: 1;
       transform: translateX(-50%);
       margin: 0;
-      color: rgba(17, 43, 48, 0.92);
-      font-size: clamp(32px, 3.55vw, 50px);
-      font-weight: 700;
-      line-height: 1.08;
+      color: rgba(25, 31, 32, 0.92);
+      font-size: 72px;
+      font-weight: 500;
+      line-height: 1.04;
       letter-spacing: 0;
       text-align: center;
       text-wrap: balance;
-      white-space: nowrap;
-      text-shadow: 0 1px 18px rgba(255, 255, 255, 0.68);
+      white-space: pre-line;
+      text-shadow: 0 2px 24px rgba(255, 255, 255, 0.9);
+    }
+
+    #${VISUAL_SHELL_ID} .monk-mode-paused-pill {
+      display: none;
+      align-items: center;
+      gap: 18px;
+      position: absolute;
+      top: 50.5vh;
+      left: 50%;
+      z-index: 1;
+      transform: translateX(-50%);
+      min-height: 78px;
+      padding: 0 32px;
+      border: 1px solid rgba(210, 215, 215, 0.86);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 14px 38px rgba(30, 45, 49, 0.1), 0 2px 9px rgba(30, 45, 49, 0.08);
+      color: rgba(30, 35, 36, 0.92);
+      font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 21px;
+      font-weight: 500;
+      letter-spacing: 0;
+      backdrop-filter: blur(16px);
+    }
+
+    #${VISUAL_SHELL_ID} .monk-mode-paused-icon {
+      position: relative;
+      width: 40px;
+      height: 44px;
+      flex: 0 0 auto;
+    }
+
+    #${VISUAL_SHELL_ID} .monk-mode-paused-icon::before {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 12px;
+      width: 14px;
+      height: 18px;
+      border: 2px solid rgba(33, 41, 43, 0.84);
+      border-radius: 999px;
+      background: rgba(255, 245, 221, 0.72);
+    }
+
+    #${VISUAL_SHELL_ID} .monk-mode-paused-icon::after {
+      content: "";
+      position: absolute;
+      right: 4px;
+      bottom: 1px;
+      width: 30px;
+      height: 27px;
+      border: 2px solid rgba(33, 41, 43, 0.84);
+      border-top-color: transparent;
+      border-radius: 50% 50% 42% 42%;
+      box-shadow:
+        -16px 0 0 -9px rgba(255, 255, 255, 0.95),
+        -18px 0 0 -7px rgba(33, 41, 43, 0.84),
+        0 10px 0 -6px rgba(33, 41, 43, 0.84);
     }
 
     #${VISUAL_SHELL_ID} .monk-mode-search-note,
@@ -290,22 +345,29 @@ function installFeedBlocker(): void {
       display: block;
     }
 
+    html[data-monk-mode-view="home"] #${VISUAL_SHELL_ID} .monk-mode-paused-pill {
+      display: flex;
+    }
+
     html[data-monk-mode-view="home"] ytd-masthead {
-      background: transparent !important;
+      background: #fff !important;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
       box-shadow: none !important;
+      min-height: 80px !important;
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead > #container {
+      height: 80px !important;
+      min-height: 80px !important;
+      align-items: center !important;
     }
 
     html[data-monk-mode-view="home"] ytd-masthead #center {
-      width: min(720px, calc(100vw - 48px)) !important;
+      width: min(780px, calc(100vw - 520px)) !important;
       min-width: 0 !important;
-      max-width: none !important;
-      position: fixed !important;
-      top: 55vh !important;
-      left: 50vw !important;
-      z-index: 4 !important;
-      transform: translate(-50%, -50%) !important;
-      margin: 0 !important;
-      padding: 0 !important;
+      max-width: 780px !important;
+      position: static !important;
+      transform: none !important;
       pointer-events: auto !important;
       visibility: visible !important;
       opacity: 1 !important;
@@ -315,43 +377,62 @@ function installFeedBlocker(): void {
     html[data-monk-mode-view="home"] ytd-masthead #center #search-form {
       width: 100% !important;
       max-width: none !important;
-      min-height: 54px !important;
-      border-color: rgba(255, 255, 255, 0.86) !important;
+      min-height: 46px !important;
+      height: 46px !important;
+      border-color: rgba(208, 208, 208, 0.98) !important;
       border-radius: 999px !important;
-      background: rgba(255, 255, 255, 0.9) !important;
-      box-shadow: 0 18px 55px rgba(23, 57, 65, 0.16), 0 2px 8px rgba(23, 57, 65, 0.08) !important;
-      backdrop-filter: blur(14px);
+      background: rgba(255, 255, 255, 0.96) !important;
+      box-shadow: none !important;
+      backdrop-filter: none;
     }
 
     html[data-monk-mode-view="home"] ytd-masthead #center input {
       font-size: 18px !important;
+      font-weight: 400 !important;
     }
 
     html[data-monk-mode-view="home"] ytd-masthead #end {
-      position: fixed !important;
-      top: 10px !important;
-      right: 18px !important;
-      z-index: 5 !important;
       pointer-events: auto !important;
       visibility: visible !important;
       opacity: 1 !important;
     }
 
-    html[data-monk-mode-view="home"] ytd-masthead #voice-search-button,
-    html[data-monk-mode-view="home"] ytd-masthead ytd-notification-topbar-button-renderer {
+    html[data-monk-mode-view="home"] ytd-masthead #voice-search-button {
       display: none !important;
     }
 
+    html[data-monk-mode-view="home"] ytd-masthead #start,
+    html[data-monk-mode-view="home"] ytd-masthead #guide-button,
+    html[data-monk-mode-view="home"] ytd-masthead ytd-notification-topbar-button-renderer,
     html[data-monk-mode-view="home"] ytd-masthead #end *,
     html[data-monk-mode-view="home"] ytd-masthead #center * {
       visibility: visible !important;
       opacity: 1 !important;
     }
 
+    @media (max-width: 1240px) {
+      #${VISUAL_SHELL_ID} .monk-mode-home-title {
+        font-size: 60px;
+      }
+    }
+
     @media (max-width: 920px) {
       #${VISUAL_SHELL_ID} .monk-mode-home-title {
         white-space: normal;
-        font-size: 34px;
+        top: 23vh;
+        font-size: 42px;
+      }
+
+      #${VISUAL_SHELL_ID} .monk-mode-paused-pill {
+        top: 48vh;
+        min-height: 64px;
+        padding: 0 24px;
+        border-radius: 20px;
+        font-size: 18px;
+      }
+
+      html[data-monk-mode-view="home"] ytd-masthead #center {
+        width: min(560px, calc(100vw - 148px)) !important;
       }
     }
 
@@ -433,18 +514,25 @@ function getMonkModeView(focusMode: boolean): string {
 function createVisualShell(): HTMLElement {
   const shell = document.createElement("section");
   const homeTitle = document.createElement("h1");
+  const pausedPill = document.createElement("div");
+  const pausedIcon = document.createElement("span");
+  const pausedText = document.createElement("span");
   const searchNote = document.createElement("p");
   const watchNote = document.createElement("p");
 
   shell.id = VISUAL_SHELL_ID;
   shell.setAttribute("aria-hidden", "true");
   homeTitle.className = "monk-mode-home-title";
-  homeTitle.textContent = "What are we building today, Satya?";
+  homeTitle.textContent = "What are you\nhere to learn?";
+  pausedPill.className = "monk-mode-paused-pill";
+  pausedIcon.className = "monk-mode-paused-icon";
+  pausedText.textContent = "Feed paused";
+  pausedPill.append(pausedIcon, pausedText);
   searchNote.className = "monk-mode-search-note";
   searchNote.textContent = "Intentional results";
   watchNote.className = "monk-mode-watch-note";
   watchNote.textContent = "Recommendations hidden";
-  shell.append(homeTitle, searchNote, watchNote);
+  shell.append(homeTitle, pausedPill, searchNote, watchNote);
 
   return shell;
 }
