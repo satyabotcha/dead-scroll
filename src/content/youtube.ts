@@ -42,6 +42,8 @@ const INVISIBLE_LAYOUT_SELECTORS = [
 const STYLE_ID = "social-media-feed-remover-youtube";
 const YOUTUBE_SETTINGS_KEY = "focusMode";
 const YOUTUBE_DEFAULT_FOCUS_MODE = true;
+const AUTOPLAY_TOGGLE_SELECTOR = ".ytp-autonav-toggle-button[aria-checked]";
+const AUTOPLAY_CLICK_COOLDOWN_MS = 750;
 const SHORTS_HIDDEN_ATTRIBUTE = "data-feed-remover-shorts-hidden";
 const SHORTS_CONTAINER_SELECTOR = [
   "ytd-video-renderer",
@@ -55,6 +57,8 @@ const SHORTS_CONTAINER_SELECTOR = [
   "ytd-shelf-renderer",
   "ytd-rich-section-renderer"
 ].join(",");
+let autoplayWasDisabledByFocusMode = false;
+let lastAutoplayToggleClickAt = 0;
 
 function installFeedBlocker(): void {
   const existingStyle = document.getElementById(STYLE_ID);
@@ -89,6 +93,7 @@ function installFeedBlocker(): void {
 function setFocusMode(focusMode: boolean): void {
   document.documentElement.dataset.feedRemoverFocusMode = String(focusMode);
   applyShortsFilter(focusMode);
+  syncAutoplayMode(focusMode);
 }
 
 function showPreviouslyHiddenShorts(): void {
@@ -141,6 +146,40 @@ function applyShortsFilter(focusMode: boolean): void {
   document.querySelectorAll("h2, h3, yt-formatted-string").forEach(hideShortShelfForHeading);
 }
 
+function clickAutoplayToggle(toggle: HTMLElement): boolean {
+  const now = Date.now();
+
+  if (now - lastAutoplayToggleClickAt < AUTOPLAY_CLICK_COOLDOWN_MS) {
+    return false;
+  }
+
+  lastAutoplayToggleClickAt = now;
+  toggle.click();
+  return true;
+}
+
+function syncAutoplayMode(focusMode: boolean): void {
+  const autoplayToggle = document.querySelector<HTMLElement>(AUTOPLAY_TOGGLE_SELECTOR);
+
+  if (!autoplayToggle) {
+    return;
+  }
+
+  const autoplayEnabled = autoplayToggle.getAttribute("aria-checked") === "true";
+
+  if (focusMode && autoplayEnabled) {
+    // Clicking the native player toggle keeps YouTube's own UI and autoplay state in sync.
+    autoplayWasDisabledByFocusMode = clickAutoplayToggle(autoplayToggle);
+    return;
+  }
+
+  if (!focusMode && autoplayWasDisabledByFocusMode && !autoplayEnabled) {
+    if (clickAutoplayToggle(autoplayToggle)) {
+      autoplayWasDisabledByFocusMode = false;
+    }
+  }
+}
+
 function loadSettings(): void {
   chrome.storage.sync.get(YOUTUBE_SETTINGS_KEY, (result) => {
     const storedValue = result[YOUTUBE_SETTINGS_KEY];
@@ -161,7 +200,10 @@ installFeedBlocker();
 loadSettings();
 
 const observer = new MutationObserver(() => {
-  applyShortsFilter(document.documentElement.dataset.feedRemoverFocusMode === "true");
+  const focusMode = document.documentElement.dataset.feedRemoverFocusMode === "true";
+
+  applyShortsFilter(focusMode);
+  syncAutoplayMode(focusMode);
 });
 
 observer.observe(document.documentElement, {
