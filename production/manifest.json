@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Social Media Feed Remover",
+  "name": "Monk Mode",
   "version": "0.1.0",
   "description": "Removes distracting social feeds, starting with YouTube.",
   "permissions": ["storage"],
   "action": {
-    "default_title": "Social Media Feed Remover",
+    "default_title": "Monk Mode",
     "default_popup": "popup/popup.html"
   },
   "content_scripts": [
