@@ -1,11 +1,12 @@
 "use strict";
-const FEED_SELECTORS = [
-    "ytd-rich-grid-renderer",
-    "ytd-browse[page-subtype='home'] #contents",
-    "ytd-browse[page-subtype='subscriptions'] #contents",
-    "ytd-watch-next-secondary-results-renderer",
-    "ytd-reel-shelf-renderer",
-    "ytd-shorts"
+const HIDDEN_SELECTORS = [
+    "ytd-app > #content",
+    "ytd-mini-guide-renderer",
+    "ytd-guide-renderer",
+    "tp-yt-app-drawer",
+    "ytd-masthead #guide-button",
+    "ytd-masthead #voice-search-button",
+    "ytd-masthead #start > *:not(ytd-topbar-logo-renderer)"
 ];
 const STYLE_ID = "social-media-feed-remover-youtube";
 function installFeedBlocker() {
@@ -15,8 +16,17 @@ function installFeedBlocker() {
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-    ${FEED_SELECTORS.join(",\n    ")} {
+    ${HIDDEN_SELECTORS.join(",\n    ")} {
       display: none !important;
+    }
+
+    ytd-masthead {
+      display: flex !important;
+      visibility: visible !important;
+    }
+
+    ytd-app {
+      background: var(--yt-spec-base-background, #fff) !important;
     }
   `;
     document.documentElement.append(style);
