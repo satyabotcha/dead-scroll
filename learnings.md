@@ -52,3 +52,7 @@
 ### 2026-05-08 Custom homepage takeover was too brittle
 **Context:** We tried replacing the YouTube home feed with a minimal video-backed search page.
 **Learning:** Moving YouTube masthead nodes into extension-owned overlays is fragile and can blank controls. For now, keep the native masthead in place and hide only feed surfaces underneath it.
+
+### 2026-05-08 Momentum-style home needs real spacing
+**Context:** We added a scenic Monk Mode home screen with centered copy and native YouTube search.
+**Learning:** Large homepage copy must be treated as a fixed visual composition, not normal document flow. Keep the heading on one line at desktop sizes, place search well below it, and use a soft radial overlay instead of washing out the whole image.

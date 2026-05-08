@@ -80,10 +80,12 @@ const SHORTS_CSS_SELECTORS = [
 const INVISIBLE_LAYOUT_SELECTORS = [
   "ytd-masthead #guide-button",
   "ytd-masthead #voice-search-button",
-  "ytd-masthead #start > *:not(ytd-topbar-logo-renderer)"
+  "ytd-masthead #start",
+  "ytd-masthead ytd-notification-topbar-button-renderer"
 ] as const;
 
 const STYLE_ID = "social-media-feed-remover-youtube";
+const VISUAL_SHELL_ID = "monk-mode-visual-shell";
 const YOUTUBE_SETTINGS_KEY = "focusMode";
 const YOUTUBE_DEFAULT_FOCUS_MODE = true;
 const AUTOPLAY_TOGGLE_SELECTOR = ".ytp-autonav-toggle-button[aria-checked]";
@@ -121,6 +123,8 @@ let mutedBeforeAd = false;
 function installFeedBlocker(): void {
   const existingStyle = document.getElementById(STYLE_ID);
   const style = existingStyle ?? document.createElement("style");
+  const backgroundImageUrl = chrome.runtime.getURL("assets/monk-mode-background.png");
+
   style.id = STYLE_ID;
   style.textContent = `
     html[data-feed-remover-focus-mode="true"] ${CONTENT_SELECTORS.join(
@@ -165,6 +169,240 @@ function installFeedBlocker(): void {
     )} {
       display: none !important;
     }
+
+    #${VISUAL_SHELL_ID} {
+      display: none;
+      position: fixed;
+      inset: 56px 0 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+      background: #fff;
+      font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #${VISUAL_SHELL_ID}::before {
+      content: "";
+      position: absolute;
+      inset: -2%;
+      background-image:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.18) 18%, rgba(255, 255, 255, 0.04) 58%, rgba(255, 255, 255, 0.34) 100%),
+        url("${backgroundImageUrl}");
+      background-size: cover;
+      background-position: center;
+      opacity: 1;
+      transform: scale(1.01);
+      animation: monk-mode-scenic-drift 96s ease-in-out infinite alternate;
+      will-change: transform, background-position;
+    }
+
+    #${VISUAL_SHELL_ID}::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.11) 44%, transparent 58%),
+        radial-gradient(ellipse at 50% 34%, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.26) 30%, transparent 56%),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.06) 30%, rgba(255, 255, 255, 0.05) 70%, rgba(255, 255, 255, 0.48));
+      background-size: 220% 100%, 100% 100%, 100% 100%;
+      animation: monk-mode-light-drift 140s linear infinite;
+      will-change: background-position;
+    }
+
+    @keyframes monk-mode-scenic-drift {
+      0% {
+        transform: scale(1.015) translate3d(-0.7%, -0.25%, 0);
+        background-position: 48% 50%;
+      }
+
+      100% {
+        transform: scale(1.055) translate3d(0.7%, 0.28%, 0);
+        background-position: 52% 50%;
+      }
+    }
+
+    @keyframes monk-mode-light-drift {
+      0% {
+        background-position: -120% 0, center, center;
+      }
+
+      100% {
+        background-position: 160% 0, center, center;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #${VISUAL_SHELL_ID}::before,
+      #${VISUAL_SHELL_ID}::after {
+        animation: none !important;
+      }
+    }
+
+    #${VISUAL_SHELL_ID} .monk-mode-home-title {
+      display: none;
+      width: min(1280px, calc(100vw - 72px));
+      position: absolute;
+      top: 28vh;
+      left: 50%;
+      z-index: 1;
+      transform: translateX(-50%);
+      margin: 0;
+      color: rgba(17, 43, 48, 0.92);
+      font-size: clamp(32px, 3.55vw, 50px);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: 0;
+      text-align: center;
+      text-wrap: balance;
+      white-space: nowrap;
+      text-shadow: 0 1px 18px rgba(255, 255, 255, 0.68);
+    }
+
+    #${VISUAL_SHELL_ID} .monk-mode-search-note,
+    #${VISUAL_SHELL_ID} .monk-mode-watch-note {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      color: rgba(42, 57, 60, 0.48);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    html[data-feed-remover-focus-mode="true"] ytd-app {
+      position: relative !important;
+      z-index: 1 !important;
+    }
+
+    html[data-monk-mode-view="home"] body,
+    html[data-monk-mode-view="home"] ytd-app,
+    html[data-monk-mode-view="home"] ytd-page-manager,
+    html[data-monk-mode-view="home"] ytd-browse[page-subtype="home"] {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+
+    html[data-monk-mode-view="home"] #${VISUAL_SHELL_ID} {
+      display: block;
+    }
+
+    html[data-monk-mode-view="home"] #${VISUAL_SHELL_ID} .monk-mode-home-title {
+      display: block;
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead {
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead #center {
+      width: min(720px, calc(100vw - 48px)) !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      position: fixed !important;
+      top: 55vh !important;
+      left: 50vw !important;
+      z-index: 4 !important;
+      transform: translate(-50%, -50%) !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      pointer-events: auto !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead #center #container,
+    html[data-monk-mode-view="home"] ytd-masthead #center #search-form {
+      width: 100% !important;
+      max-width: none !important;
+      min-height: 54px !important;
+      border-color: rgba(255, 255, 255, 0.86) !important;
+      border-radius: 999px !important;
+      background: rgba(255, 255, 255, 0.9) !important;
+      box-shadow: 0 18px 55px rgba(23, 57, 65, 0.16), 0 2px 8px rgba(23, 57, 65, 0.08) !important;
+      backdrop-filter: blur(14px);
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead #center input {
+      font-size: 18px !important;
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead #end {
+      position: fixed !important;
+      top: 10px !important;
+      right: 18px !important;
+      z-index: 5 !important;
+      pointer-events: auto !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead #voice-search-button,
+    html[data-monk-mode-view="home"] ytd-masthead ytd-notification-topbar-button-renderer {
+      display: none !important;
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead #end *,
+    html[data-monk-mode-view="home"] ytd-masthead #center * {
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    @media (max-width: 920px) {
+      #${VISUAL_SHELL_ID} .monk-mode-home-title {
+        white-space: normal;
+        font-size: 34px;
+      }
+    }
+
+    html[data-monk-mode-view="search"] #${VISUAL_SHELL_ID} {
+      display: block;
+      height: 210px;
+      inset: 56px 0 auto;
+      opacity: 0.52;
+      -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.72) 42%, transparent 100%);
+      mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.72) 42%, transparent 100%);
+    }
+
+    html[data-monk-mode-view="search"] #${VISUAL_SHELL_ID}::before {
+      background-position: center 42%;
+    }
+
+    html[data-monk-mode-view="search"] #${VISUAL_SHELL_ID} .monk-mode-search-note {
+      display: block;
+      top: 116px;
+      left: max(248px, calc(50vw - 510px));
+    }
+
+    html[data-monk-mode-view="watch"] #${VISUAL_SHELL_ID} {
+      display: block;
+      inset: 56px 0 0 auto;
+      width: min(440px, 32vw);
+      opacity: 0.58;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.74) 32%, #000 100%);
+      mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.74) 32%, #000 100%);
+    }
+
+    html[data-monk-mode-view="watch"] #${VISUAL_SHELL_ID}::before {
+      background-position: 72% center;
+    }
+
+    html[data-monk-mode-view="watch"] #${VISUAL_SHELL_ID} .monk-mode-watch-note {
+      display: block;
+      top: 118px;
+      right: 64px;
+    }
+
+    html[data-monk-mode-view="search"] ytd-app,
+    html[data-monk-mode-view="watch"] ytd-app {
+      background: rgba(255, 255, 255, 0.92) !important;
+    }
+
+    html[data-monk-mode-view="search"] ytd-masthead,
+    html[data-monk-mode-view="watch"] ytd-masthead {
+      background: rgba(255, 255, 255, 0.84) !important;
+      backdrop-filter: blur(12px);
+    }
   `;
 
   if (!existingStyle) {
@@ -172,8 +410,63 @@ function installFeedBlocker(): void {
   }
 }
 
+function getMonkModeView(focusMode: boolean): string {
+  if (!focusMode) {
+    return "off";
+  }
+
+  if (location.pathname === "/" || location.pathname === "/feed/recommended") {
+    return "home";
+  }
+
+  if (location.pathname === "/results") {
+    return "search";
+  }
+
+  if (location.pathname === "/watch") {
+    return "watch";
+  }
+
+  return "off";
+}
+
+function createVisualShell(): HTMLElement {
+  const shell = document.createElement("section");
+  const homeTitle = document.createElement("h1");
+  const searchNote = document.createElement("p");
+  const watchNote = document.createElement("p");
+
+  shell.id = VISUAL_SHELL_ID;
+  shell.setAttribute("aria-hidden", "true");
+  homeTitle.className = "monk-mode-home-title";
+  homeTitle.textContent = "What are we building today, Satya?";
+  searchNote.className = "monk-mode-search-note";
+  searchNote.textContent = "Intentional results";
+  watchNote.className = "monk-mode-watch-note";
+  watchNote.textContent = "Recommendations hidden";
+  shell.append(homeTitle, searchNote, watchNote);
+
+  return shell;
+}
+
+function syncVisualShell(focusMode: boolean): void {
+  const view = getMonkModeView(focusMode);
+
+  document.documentElement.dataset.monkModeView = view;
+
+  if (view === "off") {
+    document.getElementById(VISUAL_SHELL_ID)?.remove();
+    return;
+  }
+
+  if (!document.getElementById(VISUAL_SHELL_ID)) {
+    document.documentElement.append(createVisualShell());
+  }
+}
+
 function setFocusMode(focusMode: boolean): void {
   document.documentElement.dataset.feedRemoverFocusMode = String(focusMode);
+  syncVisualShell(focusMode);
   applyShortsFilter(focusMode);
   syncAutoplayMode(focusMode);
   processPlayerAds(focusMode);
@@ -350,6 +643,7 @@ loadSettings();
 const observer = new MutationObserver(() => {
   const focusMode = document.documentElement.dataset.feedRemoverFocusMode === "true";
 
+  syncVisualShell(focusMode);
   applyShortsFilter(focusMode);
   syncAutoplayMode(focusMode);
   processPlayerAds(focusMode);
