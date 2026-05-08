@@ -402,12 +402,15 @@ function installFeedBlocker(): void {
     }
 
     html[data-monk-mode-view="home"] ytd-masthead #start,
-    html[data-monk-mode-view="home"] ytd-masthead #guide-button,
-    html[data-monk-mode-view="home"] ytd-masthead ytd-notification-topbar-button-renderer,
     html[data-monk-mode-view="home"] ytd-masthead #end *,
     html[data-monk-mode-view="home"] ytd-masthead #center * {
       visibility: visible !important;
       opacity: 1 !important;
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead #guide-button,
+    html[data-monk-mode-view="home"] ytd-masthead ytd-notification-topbar-button-renderer {
+      display: none !important;
     }
 
     @media (max-width: 1240px) {
