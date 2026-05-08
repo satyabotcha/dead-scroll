@@ -36,3 +36,11 @@
 ### 2026-05-08 Search should stay usable
 **Context:** The extension needs to remove passive feeds but still let users search for videos.
 **Learning:** Do not hide `ytd-search` result containers. Hide home/browse feeds and the watch-page secondary recommendation rail, while leaving search results and the watch-page primary video intact.
+
+### 2026-05-08 Shorts need DOM filtering
+**Context:** Shorts can appear inside normal YouTube search results rather than only in dedicated shelves.
+**Learning:** Use a default-on setting plus both CSS `:has(a[href^='/shorts/'])` selectors and a MutationObserver DOM pass that hides the closest result card for `/shorts/` links.
+
+### 2026-05-08 YouTube search shelves can be too broad
+**Context:** We tried hiding YouTube's newer Shorts shelf container in search results.
+**Learning:** `grid-shelf-view-model` and generic sibling walking can cover more of the page than the visible shelf. Do not hide those broad containers without a precise live-DOM guard; prefer narrower Shorts links/cards until the shelf component can be targeted safely.

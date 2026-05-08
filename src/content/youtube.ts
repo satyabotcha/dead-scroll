@@ -14,6 +14,25 @@ const CONTENT_SELECTORS = [
   "ytd-browse ytd-feed-filter-chip-bar-renderer"
 ] as const;
 
+const SHORTS_CSS_SELECTORS = [
+  "ytd-reel-shelf-renderer",
+  "ytd-reel-video-renderer",
+  "grid-shelf-view-model:has(a[href^='/shorts/']) > yt-section-header-view-model",
+  "grid-shelf-view-model:has(a[href^='/shorts/']) > div:has(a[href^='/shorts/'])",
+  "grid-shelf-view-model:has(a[href^='/shorts/']) > div.ytGridShelfViewModel",
+  "grid-shelf-view-model:has(a[href^='/shorts/']) button",
+  "yt-horizontal-list-renderer:has(a[href^='/shorts/'])",
+  "ytd-shelf-renderer:has(a[href^='/shorts/'])",
+  "ytd-rich-section-renderer:has(a[href^='/shorts/'])",
+  "ytd-rich-item-renderer:has(a[href^='/shorts/'])",
+  "ytd-video-renderer:has(a[href^='/shorts/'])",
+  "ytd-grid-video-renderer:has(a[href^='/shorts/'])",
+  "ytd-compact-video-renderer:has(a[href^='/shorts/'])",
+  "ytd-playlist-video-renderer:has(a[href^='/shorts/'])",
+  "yt-lockup-view-model:has(a[href^='/shorts/'])",
+  "a[href^='/shorts/']"
+] as const;
+
 const INVISIBLE_LAYOUT_SELECTORS = [
   "ytd-masthead #guide-button",
   "ytd-masthead #voice-search-button",
@@ -21,19 +40,44 @@ const INVISIBLE_LAYOUT_SELECTORS = [
 ] as const;
 
 const STYLE_ID = "social-media-feed-remover-youtube";
+const YOUTUBE_SETTINGS_KEY = "focusMode";
+const YOUTUBE_DEFAULT_FOCUS_MODE = true;
+const SHORTS_HIDDEN_ATTRIBUTE = "data-feed-remover-shorts-hidden";
+const SHORTS_CONTAINER_SELECTOR = [
+  "ytd-video-renderer",
+  "ytd-rich-item-renderer",
+  "ytd-grid-video-renderer",
+  "ytd-compact-video-renderer",
+  "ytd-playlist-video-renderer",
+  "ytd-reel-video-renderer",
+  "ytd-reel-shelf-renderer",
+  "yt-horizontal-list-renderer",
+  "ytd-shelf-renderer",
+  "ytd-rich-section-renderer"
+].join(",");
 
 function installFeedBlocker(): void {
   const existingStyle = document.getElementById(STYLE_ID);
   const style = existingStyle ?? document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    ${CONTENT_SELECTORS.join(",\n    ")} {
+    html[data-feed-remover-focus-mode="true"] ${CONTENT_SELECTORS.join(
+      ",\n    html[data-feed-remover-focus-mode=\"true\"] "
+    )} {
       display: none !important;
     }
 
-    ${INVISIBLE_LAYOUT_SELECTORS.join(",\n    ")} {
+    html[data-feed-remover-focus-mode="true"] ${INVISIBLE_LAYOUT_SELECTORS.join(
+      ",\n    html[data-feed-remover-focus-mode=\"true\"] "
+    )} {
       visibility: hidden !important;
       pointer-events: none !important;
+    }
+
+    html[data-feed-remover-focus-mode="true"] ${SHORTS_CSS_SELECTORS.join(
+      ",\n    html[data-feed-remover-focus-mode=\"true\"] "
+    )} {
+      display: none !important;
     }
   `;
 
@@ -42,4 +86,85 @@ function installFeedBlocker(): void {
   }
 }
 
+function setFocusMode(focusMode: boolean): void {
+  document.documentElement.dataset.feedRemoverFocusMode = String(focusMode);
+  applyShortsFilter(focusMode);
+}
+
+function showPreviouslyHiddenShorts(): void {
+  document.querySelectorAll(`[${SHORTS_HIDDEN_ATTRIBUTE}="true"]`).forEach((element) => {
+    if (element instanceof HTMLElement) {
+      element.style.removeProperty("display");
+      element.removeAttribute(SHORTS_HIDDEN_ATTRIBUTE);
+    }
+  });
+}
+
+function hideShortElement(element: HTMLElement): void {
+  element.setAttribute(SHORTS_HIDDEN_ATTRIBUTE, "true");
+  element.style.setProperty("display", "none", "important");
+}
+
+function hideShortContainerForLink(link: HTMLAnchorElement): void {
+  const container = link.closest(SHORTS_CONTAINER_SELECTOR);
+
+  if (container instanceof HTMLElement) {
+    hideShortElement(container);
+  }
+}
+
+function hideShortShelfForHeading(heading: Element): void {
+  if (!heading.textContent?.trim().toLowerCase().startsWith("shorts")) {
+    return;
+  }
+
+  if (heading.closest("ytd-guide-renderer, ytd-mini-guide-renderer")) {
+    return;
+  }
+
+  const shelf = heading.closest(
+    "ytd-reel-shelf-renderer, yt-horizontal-list-renderer, ytd-shelf-renderer, ytd-rich-section-renderer"
+  );
+
+  if (shelf instanceof HTMLElement) {
+    hideShortElement(shelf);
+  }
+}
+
+function applyShortsFilter(focusMode: boolean): void {
+  if (!focusMode) {
+    showPreviouslyHiddenShorts();
+    return;
+  }
+
+  document.querySelectorAll<HTMLAnchorElement>("a[href^='/shorts/']").forEach(hideShortContainerForLink);
+  document.querySelectorAll("h2, h3, yt-formatted-string").forEach(hideShortShelfForHeading);
+}
+
+function loadSettings(): void {
+  chrome.storage.sync.get(YOUTUBE_SETTINGS_KEY, (result) => {
+    const storedValue = result[YOUTUBE_SETTINGS_KEY];
+    setFocusMode(typeof storedValue === "boolean" ? storedValue : YOUTUBE_DEFAULT_FOCUS_MODE);
+  });
+}
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "sync" || !(YOUTUBE_SETTINGS_KEY in changes)) {
+    return;
+  }
+
+  setFocusMode(changes[YOUTUBE_SETTINGS_KEY].newValue !== false);
+});
+
+setFocusMode(YOUTUBE_DEFAULT_FOCUS_MODE);
 installFeedBlocker();
+loadSettings();
+
+const observer = new MutationObserver(() => {
+  applyShortsFilter(document.documentElement.dataset.feedRemoverFocusMode === "true");
+});
+
+observer.observe(document.documentElement, {
+  childList: true,
+  subtree: true
+});

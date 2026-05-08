@@ -3,6 +3,11 @@
   "name": "Social Media Feed Remover",
   "version": "0.1.0",
   "description": "Removes distracting social feeds, starting with YouTube.",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "Social Media Feed Remover",
+    "default_popup": "popup/popup.html"
+  },
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],
