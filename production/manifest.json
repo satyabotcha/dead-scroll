@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Social Media Feed Remover",
+  "version": "0.1.0",
+  "description": "Removes distracting social feeds, starting with YouTube.",
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content/youtube.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

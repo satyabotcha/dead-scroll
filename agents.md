@@ -1,25 +1,26 @@
 # AGENTS.md
 
 ## What is this and who is it for?
-[One short paragraph: who the user is, what problem they have, and what this app does about it]
+This is a Chrome extension for people who want social sites without addictive feeds. It starts with YouTube and removes feed surfaces while leaving direct navigation, search, and video watching intact.
 
 ## Product Philosophy
-[Your 2-3 most opinionated constraints — the ones an agent would get wrong by default]
-- [e.g. Max three habits — simplicity is the product, not a limitation]
-- [e.g. No social features — this is a personal tool, not a network]
-- [e.g. No onboarding — if it needs explaining, redesign it]
+- Remove feeds, not the whole site — preserve intentional use.
+- Keep hand-written source in TypeScript under `src/`; generated JavaScript belongs in `production/`.
+- The Chrome-uploadable output folder is `production/`.
 
 ---
 
 ## Tech Stack
-- **Language:** [e.g. TypeScript]
-- **Frontend:** [e.g. React, Next.js]
-- **Backend:** [e.g. Node, Vercel]
-- **Database:** [e.g. Postgres, Supabase]
-- **Styling:** [e.g. Tailwind CSS]
+- **Language:** TypeScript
+- **Extension:** Chrome Extension Manifest V3
+- **Runtime:** Content scripts
+- **Build:** TypeScript compiler to `production/`
+- **Backend:** None
+- **Database:** None
 
 ## Map
-*On first run: scan the repo and write a one-line description per top-level folder. Update when structure changes. Telegraph style.*
+- `src/` — hand-written TypeScript extension source.
+- `production/` — compiled Chrome extension output to load or package.
 
 ---
 
