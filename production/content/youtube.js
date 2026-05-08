@@ -148,7 +148,7 @@ function installFeedBlocker() {
     #${VISUAL_SHELL_ID} {
       display: none;
       position: fixed;
-      inset: 80px 0 0;
+      inset: 0;
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
@@ -161,10 +161,10 @@ function installFeedBlocker() {
       position: absolute;
       inset: -1.4%;
       background-image:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.42) 17%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.14) 100%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.5) 18%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.14) 100%),
         url("${backgroundImageUrl}");
       background-size: cover;
-      background-position: center 54%;
+      background-position: center 50%;
       opacity: 1;
       transform: scale(1.01);
       animation: monk-mode-scenic-drift 96s ease-in-out infinite alternate;
@@ -187,12 +187,12 @@ function installFeedBlocker() {
     @keyframes monk-mode-scenic-drift {
       0% {
         transform: scale(1.01) translate3d(-0.45%, -0.12%, 0);
-        background-position: 49% 54%;
+        background-position: 49% 50%;
       }
 
       100% {
         transform: scale(1.035) translate3d(0.45%, 0.14%, 0);
-        background-position: 51% 54%;
+        background-position: 51% 50%;
       }
     }
 
@@ -217,10 +217,10 @@ function installFeedBlocker() {
       display: none;
       width: min(1280px, calc(100vw - 72px));
       position: absolute;
-      top: 29.5vh;
+      top: 45%;
       left: 50%;
       z-index: 1;
-      transform: translateX(-50%);
+      transform: translate(-50%, -50%);
       margin: 0;
       color: rgba(25, 31, 32, 0.92);
       font-size: 72px;
@@ -231,64 +231,6 @@ function installFeedBlocker() {
       text-wrap: balance;
       white-space: pre-line;
       text-shadow: 0 2px 24px rgba(255, 255, 255, 0.9);
-    }
-
-    #${VISUAL_SHELL_ID} .monk-mode-paused-pill {
-      display: none;
-      align-items: center;
-      gap: 18px;
-      position: absolute;
-      top: 50.5vh;
-      left: 50%;
-      z-index: 1;
-      transform: translateX(-50%);
-      min-height: 78px;
-      padding: 0 32px;
-      border: 1px solid rgba(210, 215, 215, 0.86);
-      border-radius: 24px;
-      background: rgba(255, 255, 255, 0.86);
-      box-shadow: 0 14px 38px rgba(30, 45, 49, 0.1), 0 2px 9px rgba(30, 45, 49, 0.08);
-      color: rgba(30, 35, 36, 0.92);
-      font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 21px;
-      font-weight: 500;
-      letter-spacing: 0;
-      backdrop-filter: blur(16px);
-    }
-
-    #${VISUAL_SHELL_ID} .monk-mode-paused-icon {
-      position: relative;
-      width: 40px;
-      height: 44px;
-      flex: 0 0 auto;
-    }
-
-    #${VISUAL_SHELL_ID} .monk-mode-paused-icon::before {
-      content: "";
-      position: absolute;
-      top: 2px;
-      left: 12px;
-      width: 14px;
-      height: 18px;
-      border: 2px solid rgba(33, 41, 43, 0.84);
-      border-radius: 999px;
-      background: rgba(255, 245, 221, 0.72);
-    }
-
-    #${VISUAL_SHELL_ID} .monk-mode-paused-icon::after {
-      content: "";
-      position: absolute;
-      right: 4px;
-      bottom: 1px;
-      width: 30px;
-      height: 27px;
-      border: 2px solid rgba(33, 41, 43, 0.84);
-      border-top-color: transparent;
-      border-radius: 50% 50% 42% 42%;
-      box-shadow:
-        -16px 0 0 -9px rgba(255, 255, 255, 0.95),
-        -18px 0 0 -7px rgba(33, 41, 43, 0.84),
-        0 10px 0 -6px rgba(33, 41, 43, 0.84);
     }
 
     #${VISUAL_SHELL_ID} .monk-mode-search-note,
@@ -323,13 +265,10 @@ function installFeedBlocker() {
       display: block;
     }
 
-    html[data-monk-mode-view="home"] #${VISUAL_SHELL_ID} .monk-mode-paused-pill {
-      display: flex;
-    }
-
     html[data-monk-mode-view="home"] ytd-masthead {
-      background: #fff !important;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+      background: rgba(255, 255, 255, 0.76) !important;
+      backdrop-filter: blur(18px);
+      border-bottom: 0 !important;
       box-shadow: none !important;
       min-height: 80px !important;
     }
@@ -400,16 +339,8 @@ function installFeedBlocker() {
     @media (max-width: 920px) {
       #${VISUAL_SHELL_ID} .monk-mode-home-title {
         white-space: normal;
-        top: 23vh;
+        top: 42%;
         font-size: 42px;
-      }
-
-      #${VISUAL_SHELL_ID} .monk-mode-paused-pill {
-        top: 48vh;
-        min-height: 64px;
-        padding: 0 24px;
-        border-radius: 20px;
-        font-size: 18px;
       }
 
       html[data-monk-mode-view="home"] ytd-masthead #center {
@@ -488,24 +419,17 @@ function getMonkModeView(focusMode) {
 function createVisualShell() {
     const shell = document.createElement("section");
     const homeTitle = document.createElement("h1");
-    const pausedPill = document.createElement("div");
-    const pausedIcon = document.createElement("span");
-    const pausedText = document.createElement("span");
     const searchNote = document.createElement("p");
     const watchNote = document.createElement("p");
     shell.id = VISUAL_SHELL_ID;
     shell.setAttribute("aria-hidden", "true");
     homeTitle.className = "monk-mode-home-title";
     homeTitle.textContent = "What are you\nhere to learn?";
-    pausedPill.className = "monk-mode-paused-pill";
-    pausedIcon.className = "monk-mode-paused-icon";
-    pausedText.textContent = "Feed paused";
-    pausedPill.append(pausedIcon, pausedText);
     searchNote.className = "monk-mode-search-note";
     searchNote.textContent = "Intentional results";
     watchNote.className = "monk-mode-watch-note";
     watchNote.textContent = "Recommendations hidden";
-    shell.append(homeTitle, pausedPill, searchNote, watchNote);
+    shell.append(homeTitle, searchNote, watchNote);
     return shell;
 }
 function syncVisualShell(focusMode) {
