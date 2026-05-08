@@ -6,9 +6,21 @@ const CONTENT_SELECTORS = [
     "ytd-two-column-browse-results-renderer #contents > *",
     "ytd-watch-flexy #primary-inner > *",
     "ytd-watch-flexy #secondary-inner > *",
-    "ytd-mini-guide-renderer > *",
-    "ytd-guide-renderer #items > *",
-    "tp-yt-app-drawer #items > *"
+    "ytd-mini-guide-renderer",
+    "ytd-guide-renderer",
+    "tp-yt-app-drawer",
+    "ytd-search #header",
+    "ytd-search #chips",
+    "ytd-search #chips-wrapper",
+    "ytd-search yt-chip-cloud-renderer",
+    "ytd-search ytd-feed-filter-chip-bar-renderer",
+    "ytd-search ytd-search-sub-menu-renderer",
+    "ytd-search #filter-button",
+    "ytd-browse #header",
+    "ytd-browse #chips",
+    "ytd-browse #chips-wrapper",
+    "ytd-browse yt-chip-cloud-renderer",
+    "ytd-browse ytd-feed-filter-chip-bar-renderer"
 ];
 const INVISIBLE_LAYOUT_SELECTORS = [
     "ytd-masthead #guide-button",
@@ -17,10 +29,8 @@ const INVISIBLE_LAYOUT_SELECTORS = [
 ];
 const STYLE_ID = "social-media-feed-remover-youtube";
 function installFeedBlocker() {
-    if (document.getElementById(STYLE_ID)) {
-        return;
-    }
-    const style = document.createElement("style");
+    const existingStyle = document.getElementById(STYLE_ID);
+    const style = existingStyle ?? document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
     ${CONTENT_SELECTORS.join(",\n    ")} {
@@ -32,6 +42,8 @@ function installFeedBlocker() {
       pointer-events: none !important;
     }
   `;
-    document.documentElement.append(style);
+    if (!existingStyle) {
+        document.documentElement.append(style);
+    }
 }
 installFeedBlocker();
