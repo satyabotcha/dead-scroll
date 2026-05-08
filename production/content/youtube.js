@@ -161,7 +161,7 @@ function installFeedBlocker() {
       position: absolute;
       inset: -1.4%;
       background-image:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.5) 18%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.14) 100%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.74) 0%, rgba(255, 255, 255, 0.34) 15%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.14) 100%),
         url("${backgroundImageUrl}");
       background-size: cover;
       background-position: center 50%;
@@ -265,12 +265,22 @@ function installFeedBlocker() {
       display: block;
     }
 
+    html[data-monk-mode-view="home"] ytd-browse[page-subtype="home"] {
+      display: none !important;
+    }
+
     html[data-monk-mode-view="home"] ytd-masthead {
-      background: rgba(255, 255, 255, 0.76) !important;
-      backdrop-filter: blur(18px);
+      background: transparent !important;
+      backdrop-filter: none;
       border-bottom: 0 !important;
       box-shadow: none !important;
       min-height: 80px !important;
+    }
+
+    html[data-monk-mode-view="home"] ytd-masthead #background,
+    html[data-monk-mode-view="home"] ytd-masthead > #container {
+      background: transparent !important;
+      background-color: transparent !important;
     }
 
     html[data-monk-mode-view="home"] ytd-masthead > #container {

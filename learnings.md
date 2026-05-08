@@ -56,3 +56,7 @@
 ### 2026-05-08 Momentum-style home needs real spacing
 **Context:** We added a scenic Monk Mode home screen with centered copy and native YouTube search.
 **Learning:** Large homepage copy must be treated as a fixed visual composition, not normal document flow. Keep the heading on one line at desktop sizes, place search well below it, and use a soft radial overlay instead of washing out the whole image.
+
+### 2026-05-08 YouTube home can leave a white page band
+**Context:** The scenic home screen still felt separate from the masthead even after the shell started at the top of the viewport.
+**Learning:** Hidden feed children are not enough on YouTube home; the `ytd-browse[page-subtype="home"]` surface and masthead internals can still paint white. Hide the home browse surface and make masthead internals transparent when the extension owns the home canvas.
