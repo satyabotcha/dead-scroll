@@ -44,3 +44,7 @@
 ### 2026-05-08 YouTube search shelves can be too broad
 **Context:** We tried hiding YouTube's newer Shorts shelf container in search results.
 **Learning:** `grid-shelf-view-model` and generic sibling walking can cover more of the page than the visible shelf. Do not hide those broad containers without a precise live-DOM guard; prefer narrower Shorts links/cards until the shelf component can be targeted safely.
+
+### 2026-05-08 Homepage background covered controls
+**Context:** We added a full-screen homepage focus background behind YouTube search.
+**Learning:** Avoid giant z-index values for extension overlays on YouTube. Keep the background on a low fixed layer and make YouTube app/masthead transparent above it so native search and account controls remain visible.

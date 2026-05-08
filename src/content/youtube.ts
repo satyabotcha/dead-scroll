@@ -137,7 +137,7 @@ function installFeedBlocker(): void {
       position: fixed;
       inset: 0;
       overflow: hidden;
-      z-index: 2147483000;
+      z-index: 1;
       isolation: isolate;
       pointer-events: none;
       background:
@@ -148,11 +148,19 @@ function installFeedBlocker(): void {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
+    html[data-feed-remover-home-focus="true"],
     html[data-feed-remover-home-focus="true"] body {
       background: transparent !important;
     }
 
-    html[data-feed-remover-home-focus="true"] ytd-app,
+    html[data-feed-remover-home-focus="true"] ytd-app {
+      position: relative !important;
+      z-index: 2 !important;
+      background: transparent !important;
+    }
+
+    html[data-feed-remover-home-focus="true"] ytd-app #content,
+    html[data-feed-remover-home-focus="true"] ytd-app #page-manager,
     html[data-feed-remover-home-focus="true"] ytd-page-manager,
     html[data-feed-remover-home-focus="true"] ytd-browse[page-subtype="home"] {
       background: transparent !important;
@@ -164,7 +172,7 @@ function installFeedBlocker(): void {
 
     html[data-feed-remover-home-focus="true"] ytd-masthead {
       position: relative !important;
-      z-index: 2147483600 !important;
+      z-index: 3 !important;
       background: transparent !important;
       box-shadow: none !important;
     }
@@ -181,7 +189,7 @@ function installFeedBlocker(): void {
       position: fixed !important;
       top: 48vh !important;
       left: 50vw !important;
-      z-index: 2147483647 !important;
+      z-index: 4 !important;
       transform: translate(-50%, -50%) !important;
       margin: 0 !important;
       padding: 0 !important;
@@ -204,7 +212,7 @@ function installFeedBlocker(): void {
       position: absolute;
       inset: 0;
       opacity: 0.82;
-      z-index: -3;
+      z-index: 0;
     }
 
     #${HOME_FOCUS_ID} video[data-feed-remover-video-missing="true"] {
@@ -215,7 +223,7 @@ function installFeedBlocker(): void {
       content: "";
       position: absolute;
       inset: 0;
-      z-index: -2;
+      z-index: 1;
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(3, 28, 36, 0.48)),
         radial-gradient(ellipse at 50% 80%, rgba(255, 255, 255, 0.18), transparent 42%);
@@ -228,7 +236,7 @@ function installFeedBlocker(): void {
       position: absolute;
       left: -15%;
       bottom: -14%;
-      z-index: -1;
+      z-index: 2;
       border-radius: 50%;
       background:
         linear-gradient(90deg, rgba(255, 255, 255, 0.62), rgba(185, 229, 222, 0.48), rgba(255, 255, 255, 0.5));
