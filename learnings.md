@@ -32,3 +32,7 @@
 ### 2026-05-08 Content hiding left filter chrome visible
 **Context:** The header layout was fixed, but YouTube search still showed filter chips and left guide/footer chrome.
 **Learning:** Treat guide renderers and filter chip bars as page content, not masthead layout. They can be hidden directly without disturbing the top bar.
+
+### 2026-05-08 Search should stay usable
+**Context:** The extension needs to remove passive feeds but still let users search for videos.
+**Learning:** Do not hide `ytd-search` result containers. Hide home/browse feeds and the watch-page secondary recommendation rail, while leaving search results and the watch-page primary video intact.
