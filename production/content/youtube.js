@@ -1,6 +1,10 @@
 "use strict";
 const HIDDEN_SELECTORS = [
-    "ytd-app > #content",
+    "ytd-page-manager",
+    "ytd-app #page-manager",
+    "ytd-browse",
+    "ytd-watch-flexy",
+    "ytd-search",
     "ytd-mini-guide-renderer",
     "ytd-guide-renderer",
     "tp-yt-app-drawer",
@@ -20,8 +24,10 @@ function installFeedBlocker() {
       display: none !important;
     }
 
+    #masthead-container,
     ytd-masthead {
       display: flex !important;
+      opacity: 1 !important;
       visibility: visible !important;
     }
 

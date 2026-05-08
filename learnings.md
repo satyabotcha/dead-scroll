@@ -17,4 +17,6 @@
 
 ## Entries
 
-*Empty — grows as the project grows.*
+### 2026-05-08 YouTube masthead got hidden
+**Context:** We tried to leave only the YouTube header visible.
+**Learning:** Avoid broad YouTube selectors like `ytd-app > #content`; depending on the active DOM, they can hide more than the page body. Target `ytd-page-manager` / page renderer elements instead.
