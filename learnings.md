@@ -48,3 +48,7 @@
 ### 2026-05-08 Homepage background covered controls
 **Context:** We added a full-screen homepage focus background behind YouTube search.
 **Learning:** Avoid giant z-index values for extension overlays on YouTube. Keep the background on a low fixed layer and make YouTube app/masthead transparent above it so native search and account controls remain visible.
+
+### 2026-05-08 Custom homepage takeover was too brittle
+**Context:** We tried replacing the YouTube home feed with a minimal video-backed search page.
+**Learning:** Moving YouTube masthead nodes into extension-owned overlays is fragile and can blank controls. For now, keep the native masthead in place and hide only feed surfaces underneath it.
