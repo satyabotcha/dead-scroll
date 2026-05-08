@@ -60,3 +60,11 @@
 ### 2026-05-08 YouTube home can leave a white page band
 **Context:** The scenic home screen still felt separate from the masthead even after the shell started at the top of the viewport.
 **Learning:** Hidden feed children are not enough on YouTube home; the `ytd-browse[page-subtype="home"]` surface and masthead internals can still paint white. Hide the home browse surface and make masthead internals transparent when the extension owns the home canvas.
+
+### 2026-05-08 Scenic YouTube home was too much
+**Context:** We tried a generated-image Monk Mode home screen.
+**Learning:** The cleaner product direction is to leave YouTube's native white masthead and page chrome alone, then remove only distracting feed surfaces. Avoid page-canvas takeovers unless explicitly reintroduced.
+
+### 2026-05-08 Search filter chips can sit outside ytd-search
+**Context:** We removed the YouTube search page Shorts chip.
+**Learning:** Do not scope search filter-chip cleanup only under `ytd-search`; some YouTube layouts mount the chip strip as a sibling/header area. Gate by `location.pathname === "/results"` and exact chip text instead.
