@@ -1,6 +1,6 @@
 "use strict";
 const CONTENT_SELECTORS = [
-    "ytd-browse[page-subtype='home']",
+    "ytd-browse[page-subtype='home'] ytd-rich-grid-renderer > #contents",
     "ytd-watch-flexy #related",
     "ytd-watch-next-secondary-results-renderer",
     "ytd-mini-guide-renderer",
@@ -64,6 +64,7 @@ const INVISIBLE_LAYOUT_SELECTORS = [
     "ytd-masthead #start > *:not(ytd-topbar-logo-renderer)"
 ];
 const STYLE_ID = "social-media-feed-remover-youtube";
+const HOME_FOCUS_ID = "feed-remover-home-focus";
 const YOUTUBE_SETTINGS_KEY = "focusMode";
 const YOUTUBE_DEFAULT_FOCUS_MODE = true;
 const AUTOPLAY_TOGGLE_SELECTOR = ".ytp-autonav-toggle-button[aria-checked]";
@@ -112,6 +113,116 @@ function installFeedBlocker() {
     html[data-feed-remover-focus-mode="true"] ${SHORTS_CSS_SELECTORS.join(",\n    html[data-feed-remover-focus-mode=\"true\"] ")} {
       display: none !important;
     }
+
+    #${HOME_FOCUS_ID} {
+      display: none;
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: 2147483000;
+      isolation: isolate;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 50% 108%, rgba(239, 250, 243, 0.86), transparent 34%),
+        radial-gradient(ellipse at 22% 22%, rgba(113, 186, 196, 0.5), transparent 34%),
+        linear-gradient(180deg, #eef8f6 0%, #78aeb8 46%, #123d4a 100%);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    html[data-feed-remover-home-focus="true"] body {
+      background: transparent !important;
+    }
+
+    html[data-feed-remover-home-focus="true"] ytd-app,
+    html[data-feed-remover-home-focus="true"] ytd-page-manager,
+    html[data-feed-remover-home-focus="true"] ytd-browse[page-subtype="home"] {
+      background: transparent !important;
+    }
+
+    html[data-feed-remover-home-focus="true"] #${HOME_FOCUS_ID} {
+      display: block;
+    }
+
+    html[data-feed-remover-home-focus="true"] ytd-masthead {
+      position: relative !important;
+      z-index: 2147483600 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    html[data-feed-remover-home-focus="true"] ytd-masthead #start {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+
+    html[data-feed-remover-home-focus="true"] ytd-masthead #center {
+      width: min(720px, calc(100vw - 48px)) !important;
+      max-width: min(720px, calc(100vw - 48px)) !important;
+      min-width: 0 !important;
+      position: fixed !important;
+      top: 48vh !important;
+      left: 50vw !important;
+      z-index: 2147483647 !important;
+      transform: translate(-50%, -50%) !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    html[data-feed-remover-home-focus="true"] ytd-masthead #center #container,
+    html[data-feed-remover-home-focus="true"] ytd-masthead #center #search-form {
+      width: 100% !important;
+      max-width: none !important;
+    }
+
+    html[data-feed-remover-home-focus="true"] ytd-masthead #center input {
+      font-size: 18px !important;
+    }
+
+    #${HOME_FOCUS_ID} video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      inset: 0;
+      opacity: 0.82;
+      z-index: -3;
+    }
+
+    #${HOME_FOCUS_ID} video[data-feed-remover-video-missing="true"] {
+      display: none;
+    }
+
+    #${HOME_FOCUS_ID}::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(3, 28, 36, 0.48)),
+        radial-gradient(ellipse at 50% 80%, rgba(255, 255, 255, 0.18), transparent 42%);
+    }
+
+    #${HOME_FOCUS_ID}::after {
+      content: "";
+      width: 130%;
+      height: 34%;
+      position: absolute;
+      left: -15%;
+      bottom: -14%;
+      z-index: -1;
+      border-radius: 50%;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.62), rgba(185, 229, 222, 0.48), rgba(255, 255, 255, 0.5));
+      filter: blur(24px);
+    }
+
+    @media (max-width: 640px) {
+      html[data-feed-remover-home-focus="true"] ytd-masthead #center {
+        width: calc(100vw - 32px) !important;
+        max-width: calc(100vw - 32px) !important;
+      }
+    }
   `;
     if (!existingStyle) {
         document.documentElement.append(style);
@@ -119,8 +230,41 @@ function installFeedBlocker() {
 }
 function setFocusMode(focusMode) {
     document.documentElement.dataset.feedRemoverFocusMode = String(focusMode);
+    syncHomeFocus(focusMode);
     applyShortsFilter(focusMode);
     syncAutoplayMode(focusMode);
+}
+function isOnHomePage() {
+    return location.pathname === "/" || location.pathname === "/feed/recommended";
+}
+function createHomeFocus() {
+    const container = document.createElement("section");
+    const video = document.createElement("video");
+    container.id = HOME_FOCUS_ID;
+    container.setAttribute("aria-label", "Focus Mode home screen");
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.src = chrome.runtime.getURL("assets/ocean-focus.mp4");
+    video.addEventListener("error", () => {
+        video.dataset.feedRemoverVideoMissing = "true";
+    });
+    container.append(video);
+    return container;
+}
+function syncHomeFocus(focusMode) {
+    const existingFocus = document.getElementById(HOME_FOCUS_ID);
+    const shouldShowHomeFocus = focusMode && isOnHomePage();
+    document.documentElement.dataset.feedRemoverHomeFocus = String(shouldShowHomeFocus);
+    if (!shouldShowHomeFocus) {
+        existingFocus?.remove();
+        return;
+    }
+    if (existingFocus) {
+        return;
+    }
+    document.documentElement.append(createHomeFocus());
 }
 function showPreviouslyHiddenShorts() {
     document.querySelectorAll(`[${SHORTS_HIDDEN_ATTRIBUTE}="true"]`).forEach((element) => {
@@ -203,6 +347,7 @@ installFeedBlocker();
 loadSettings();
 const observer = new MutationObserver(() => {
     const focusMode = document.documentElement.dataset.feedRemoverFocusMode === "true";
+    syncHomeFocus(focusMode);
     applyShortsFilter(focusMode);
     syncAutoplayMode(focusMode);
 });

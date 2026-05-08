@@ -4,6 +4,9 @@ type ExtensionStorageChange = {
 };
 
 declare const chrome: {
+  runtime: {
+    getURL(path: string): string;
+  };
   storage: {
     sync: {
       get<T extends Record<string, unknown>>(
