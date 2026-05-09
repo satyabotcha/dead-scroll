@@ -129,6 +129,57 @@ let effectiveStarCount = 0;
 let cachedGeometryCount = -1;
 let cachedStars = [];
 let cachedEdges = [];
+let calmWebGLRenderer = null;
+const BLACK_HOLE_VERTEX_SHADER = `
+  attribute vec2 a_position;
+  varying vec2 v_uv;
+
+  void main() {
+    v_uv = a_position * 0.5 + 0.5;
+    gl_Position = vec4(a_position, 0.0, 1.0);
+  }
+`;
+const BLACK_HOLE_FRAGMENT_SHADER = `
+  precision mediump float;
+
+  uniform sampler2D u_texture;
+  uniform vec2 u_resolution;
+  uniform vec2 u_lens;
+  uniform float u_mass;
+  uniform float u_time;
+  varying vec2 v_uv;
+
+  void main() {
+    vec2 uv = v_uv;
+    vec2 delta = uv - u_lens;
+    float aspect = u_resolution.x / u_resolution.y;
+    vec2 aspectDelta = vec2(delta.x * aspect, delta.y);
+    float dist = length(aspectDelta) + 0.018;
+    float pull = u_mass / (dist * dist);
+    vec2 tangent = vec2(-delta.y, delta.x);
+    vec2 warped = uv - normalize(delta + 0.0001) * pull * 0.016;
+
+    warped += tangent * pull * (0.012 + sin(u_time * 0.16) * 0.004);
+    warped += sin((uv.yx + u_time * 0.018) * 22.0) * pull * 0.0016;
+    warped = clamp(warped, 0.001, 0.999);
+
+    vec3 color = texture2D(u_texture, warped).rgb;
+    float eventHorizon = smoothstep(0.12, 0.065, dist);
+    float ring = exp(-pow((dist - 0.155) / 0.026, 2.0));
+    float outerRing = exp(-pow((dist - 0.245) / 0.07, 2.0));
+    vec3 warmRing = vec3(0.96, 0.74, 0.42) * ring * 0.42;
+    vec3 blueRing = vec3(0.32, 0.62, 0.92) * outerRing * 0.12;
+
+    color += warmRing + blueRing;
+    color = mix(color, vec3(0.0, 0.0, 0.015), eventHorizon * 0.95);
+    color *= 0.88 + smoothstep(0.06, 0.48, dist) * 0.16;
+
+    float vignette = smoothstep(0.92, 0.22, length(uv - 0.5));
+    color *= 0.78 + vignette * 0.28;
+
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
 function installFeedBlocker() {
     const existingStyle = document.getElementById(STYLE_ID);
     const style = existingStyle ?? document.createElement("style");
@@ -196,6 +247,7 @@ function removeCalmCanvas() {
     }
     calmCanvasResizeObserver?.disconnect();
     calmCanvasResizeObserver = null;
+    calmWebGLRenderer = null;
     document.getElementById(CALM_CANVAS_ID)?.remove();
 }
 function resizeCalmCanvas(canvas) {
@@ -245,7 +297,7 @@ function buildConstellationGeometry(count) {
         });
     });
 }
-function drawCalmCanvas(canvas, timestamp) {
+function drawUniverseFallback(canvas, timestamp) {
     const ctx = canvas.getContext("2d");
     if (!ctx) {
         return;
@@ -424,6 +476,233 @@ function drawCalmCanvas(canvas, timestamp) {
     ctx.font = `${Math.round(13 * ratio)}px system-ui, -apple-system, sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(count === 1 ? "1 focus day" : `${count} focus days`, width / 2, height - 20 * ratio);
+}
+function createShader(gl, type, source) {
+    const shader = gl.createShader(type);
+    if (!shader) {
+        return null;
+    }
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        gl.deleteShader(shader);
+        return null;
+    }
+    return shader;
+}
+function createBlackHoleProgram(gl) {
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, BLACK_HOLE_VERTEX_SHADER);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, BLACK_HOLE_FRAGMENT_SHADER);
+    if (!vertexShader || !fragmentShader) {
+        return null;
+    }
+    const program = gl.createProgram();
+    if (!program) {
+        return null;
+    }
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    gl.deleteShader(vertexShader);
+    gl.deleteShader(fragmentShader);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        gl.deleteProgram(program);
+        return null;
+    }
+    return program;
+}
+function drawConstellationTexture(context, width, height, count) {
+    const ratio = 1;
+    context.clearRect(0, 0, width, height);
+    const bg = context.createLinearGradient(0, 0, 0, height);
+    bg.addColorStop(0, "#040812");
+    bg.addColorStop(0.54, "#071022");
+    bg.addColorStop(1, "#09172b");
+    context.fillStyle = bg;
+    context.fillRect(0, 0, width, height);
+    const nebulaOpacity = 0.08 + Math.min(count / 120, 1) * 0.16;
+    const nebulae = [
+        { nx: 0.2, ny: 0.32, r: 0.42, rgb: "116, 78, 220" },
+        { nx: 0.72, ny: 0.58, r: 0.34, rgb: "42, 165, 198" },
+        { nx: 0.5, ny: 0.16, r: 0.28, rgb: "207, 70, 120" }
+    ];
+    nebulae.forEach(({ nx, ny, r, rgb }) => {
+        const cx = width * nx;
+        const cy = height * ny;
+        const grad = context.createRadialGradient(cx, cy, 0, cx, cy, r * Math.min(width, height));
+        grad.addColorStop(0, `rgba(${rgb}, ${nebulaOpacity})`);
+        grad.addColorStop(0.45, `rgba(${rgb}, ${nebulaOpacity * 0.34})`);
+        grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        context.fillStyle = grad;
+        context.fillRect(0, 0, width, height);
+    });
+    const dustCount = 180;
+    for (let i = 0; i < dustCount; i += 1) {
+        const x = seededRand(2000 + i * 3) * width;
+        const y = seededRand(2001 + i * 3) * height;
+        const alpha = 0.12 + seededRand(2002 + i * 3) * 0.18;
+        context.beginPath();
+        context.arc(x, y, 0.55 + seededRand(2100 + i) * 0.8, 0, Math.PI * 2);
+        context.fillStyle = `rgba(190, 215, 255, ${alpha})`;
+        context.fill();
+    }
+    const starCount = Math.max(24, count);
+    buildConstellationGeometry(starCount);
+    cachedEdges.forEach(({ i, j, a }) => {
+        const sa = cachedStars[i];
+        const sb = cachedStars[j];
+        context.beginPath();
+        context.moveTo(sa.x * width, sa.y * height);
+        context.lineTo(sb.x * width, sb.y * height);
+        context.strokeStyle = `rgba(150, 195, 255, ${a * Math.min(count / 45, 1)})`;
+        context.lineWidth = 0.55 * ratio;
+        context.stroke();
+    });
+    cachedStars.forEach((star) => {
+        const sx = star.x * width;
+        const sy = star.y * height;
+        const alpha = count < 1 ? star.b * 0.28 : star.b;
+        const size = 0.7 + star.b * 1.55;
+        context.beginPath();
+        context.arc(sx, sy, size, 0, Math.PI * 2);
+        context.fillStyle = `rgba(255, 250, 235, ${alpha})`;
+        context.fill();
+        if (star.b > 0.72) {
+            context.beginPath();
+            context.arc(sx, sy, size * 3.6, 0, Math.PI * 2);
+            context.fillStyle = `rgba(185, 215, 255, ${alpha * 0.08})`;
+            context.fill();
+        }
+    });
+    context.fillStyle = "rgba(145, 178, 225, 0.52)";
+    context.font = "18px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+    context.textAlign = "center";
+    context.fillText(count < 1 ? "Your constellation awaits" : count === 1 ? "1 focus day" : `${count} focus days`, width / 2, height - 34);
+}
+function createConstellationTextureSource(canvas, count) {
+    const source = document.createElement("canvas");
+    const maxTextureSize = 1400;
+    const aspect = Math.max(canvas.clientWidth / Math.max(canvas.clientHeight, 1), 0.6);
+    source.width = Math.round(Math.min(maxTextureSize, Math.max(720, maxTextureSize * Math.min(aspect, 1.6) / 1.6)));
+    source.height = Math.round(source.width / aspect);
+    const context = source.getContext("2d");
+    if (!context) {
+        return null;
+    }
+    drawConstellationTexture(context, source.width, source.height, count);
+    return source;
+}
+function uploadBlackHoleTexture(renderer, source) {
+    const { gl, texture } = renderer;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    renderer.textureCount = effectiveStarCount;
+    renderer.textureWidth = source.width;
+    renderer.textureHeight = source.height;
+}
+function createBlackHoleRenderer(canvas) {
+    const gl = canvas.getContext("webgl", {
+        alpha: false,
+        antialias: true,
+        depth: false,
+        stencil: false
+    });
+    if (!gl) {
+        return null;
+    }
+    const program = createBlackHoleProgram(gl);
+    const positionBuffer = gl.createBuffer();
+    const texture = gl.createTexture();
+    if (!program || !positionBuffer || !texture) {
+        return null;
+    }
+    const resolution = gl.getUniformLocation(program, "u_resolution");
+    const lens = gl.getUniformLocation(program, "u_lens");
+    const mass = gl.getUniformLocation(program, "u_mass");
+    const time = gl.getUniformLocation(program, "u_time");
+    if (!resolution || !lens || !mass || !time) {
+        return null;
+    }
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1,
+        1, -1,
+        -1, 1,
+        -1, 1,
+        1, -1,
+        1, 1
+    ]), gl.STATIC_DRAW);
+    const positionLocation = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform1i(gl.getUniformLocation(program, "u_texture"), 0);
+    return {
+        gl,
+        program,
+        positionBuffer,
+        texture,
+        positionLocation,
+        textureCount: -1,
+        textureWidth: 0,
+        textureHeight: 0,
+        canvasWidth: 0,
+        canvasHeight: 0,
+        uniforms: {
+            resolution,
+            lens,
+            mass,
+            time
+        }
+    };
+}
+function drawBlackHoleCanvas(canvas, timestamp) {
+    resizeCalmCanvas(canvas);
+    const renderer = calmWebGLRenderer ?? createBlackHoleRenderer(canvas);
+    if (!renderer) {
+        return false;
+    }
+    calmWebGLRenderer = renderer;
+    if (renderer.textureCount !== effectiveStarCount ||
+        renderer.canvasWidth !== canvas.width ||
+        renderer.canvasHeight !== canvas.height) {
+        const source = createConstellationTextureSource(canvas, effectiveStarCount);
+        if (!source) {
+            return false;
+        }
+        uploadBlackHoleTexture(renderer, source);
+        renderer.canvasWidth = canvas.width;
+        renderer.canvasHeight = canvas.height;
+    }
+    const { gl, program, positionBuffer, positionLocation, uniforms } = renderer;
+    const t = timestamp / 1000;
+    const mass = 0.0018 + Math.min(effectiveStarCount, 365) / 365 * 0.0011;
+    const lensX = 0.5 + Math.sin(t * 0.035) * 0.18 + Math.sin(t * 0.011) * 0.08;
+    const lensY = 0.48 + Math.cos(t * 0.029) * 0.12;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, renderer.texture);
+    gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
+    gl.uniform2f(uniforms.lens, lensX, lensY);
+    gl.uniform1f(uniforms.mass, mass);
+    gl.uniform1f(uniforms.time, t);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    return true;
+}
+function drawCalmCanvas(canvas, timestamp) {
+    if (drawBlackHoleCanvas(canvas, timestamp)) {
+        return;
+    }
+    drawUniverseFallback(canvas, timestamp);
 }
 function startCalmCanvas(canvas) {
     const shouldReduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
