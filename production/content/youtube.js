@@ -249,6 +249,116 @@ function buildConstellationGeometry(count) {
         });
     });
 }
+function drawBlackHole(ctx, bx, by, br, t, fadeIn, ratio) {
+    const tilt = 0.14 + Math.sin(t * 0.007) * 0.035;
+    const inner = br * 1.28;
+    const outer = br * 3.5;
+    const rings = 12;
+    const flatY = 0.22;
+    // Ambient warm halo
+    const halo = ctx.createRadialGradient(bx, by, br * 0.8, bx, by, br * 5.5);
+    halo.addColorStop(0, `rgba(255, 130, 35, ${fadeIn * 0.07})`);
+    halo.addColorStop(0.35, `rgba(190, 75, 15, ${fadeIn * 0.03})`);
+    halo.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.beginPath();
+    ctx.arc(bx, by, br * 5.5, 0, Math.PI * 2);
+    ctx.fillStyle = halo;
+    ctx.fill();
+    // Back half of accretion disk — dimmer, top arc
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(tilt);
+    ctx.scale(1, flatY);
+    for (let ri = rings - 1; ri >= 0; ri -= 1) {
+        const frac = ri / (rings - 1);
+        const radius = inner + frac * (outer - inner);
+        const r = Math.round(255 - frac * 75);
+        const g = Math.round(230 - frac * 155);
+        const b = Math.round(175 - frac * 155);
+        const a = Math.pow(1 - frac, 0.82) * 0.45 * fadeIn;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, Math.PI, 0, false);
+        ctx.strokeStyle = `rgba(${r},${g},${b},${a})`;
+        ctx.lineWidth = br * 0.4;
+        ctx.stroke();
+    }
+    ctx.restore();
+    // Event horizon with photon sphere rim
+    const bodyGrad = ctx.createRadialGradient(bx, by, br * 0.35, bx, by, br * 1.1);
+    bodyGrad.addColorStop(0, `rgba(0,0,6,${fadeIn})`);
+    bodyGrad.addColorStop(0.88, `rgba(0,0,10,${fadeIn})`);
+    bodyGrad.addColorStop(1, `rgba(95,145,225,${fadeIn * 0.55})`);
+    ctx.beginPath();
+    ctx.arc(bx, by, br * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(0,0,0,${fadeIn})`;
+    ctx.fill();
+    // Front half of accretion disk — brighter, bottom arc
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(tilt);
+    ctx.scale(1, flatY);
+    for (let ri = rings - 1; ri >= 0; ri -= 1) {
+        const frac = ri / (rings - 1);
+        const radius = inner + frac * (outer - inner);
+        const r = Math.round(255 - frac * 55);
+        const g = Math.round(242 - frac * 168);
+        const b = Math.round(192 - frac * 172);
+        const a = Math.pow(1 - frac, 0.72) * 0.96 * fadeIn;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI, false);
+        ctx.strokeStyle = `rgba(${r},${g},${b},${a})`;
+        ctx.lineWidth = br * 0.4;
+        ctx.stroke();
+    }
+    ctx.restore();
+    // Relativistic Doppler hotspot — brighter on approaching side
+    const hotX = bx + br * 0.9;
+    const hotY = by + br * 0.08;
+    const hot = ctx.createRadialGradient(hotX, hotY, 0, hotX, hotY, br * 1.15);
+    hot.addColorStop(0, `rgba(255, 235, 155, ${fadeIn * 0.52})`);
+    hot.addColorStop(0.38, `rgba(255, 150, 45, ${fadeIn * 0.18})`);
+    hot.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.beginPath();
+    ctx.arc(hotX, hotY, br * 1.15, 0, Math.PI * 2);
+    ctx.fillStyle = hot;
+    ctx.fill();
+    // Subtle lensing arc above the black hole (top photon capture ring)
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(tilt);
+    ctx.scale(1, flatY * 0.65);
+    ctx.beginPath();
+    ctx.arc(0, 0, br * 1.22, Math.PI * 0.15, Math.PI * 0.85, false);
+    ctx.strokeStyle = `rgba(200, 220, 255, ${fadeIn * 0.35})`;
+    ctx.lineWidth = ratio * 1.2;
+    ctx.stroke();
+    ctx.restore();
+    // Very faint relativistic jet perpendicular to disk
+    const jetLen = br * 2.8;
+    const jetAngle = tilt - Math.PI / 2;
+    const jGrad = ctx.createLinearGradient(bx, by, bx + Math.cos(jetAngle) * jetLen, by + Math.sin(jetAngle) * jetLen);
+    jGrad.addColorStop(0, `rgba(160, 190, 255, ${fadeIn * 0.18})`);
+    jGrad.addColorStop(1, "rgba(100, 140, 255, 0)");
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + Math.cos(jetAngle) * jetLen, by + Math.sin(jetAngle) * jetLen);
+    ctx.strokeStyle = jGrad;
+    ctx.lineWidth = ratio * 1.8;
+    ctx.stroke();
+    const jGrad2 = ctx.createLinearGradient(bx, by, bx - Math.cos(jetAngle) * jetLen, by - Math.sin(jetAngle) * jetLen);
+    jGrad2.addColorStop(0, `rgba(160, 190, 255, ${fadeIn * 0.18})`);
+    jGrad2.addColorStop(1, "rgba(100, 140, 255, 0)");
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx - Math.cos(jetAngle) * jetLen, by - Math.sin(jetAngle) * jetLen);
+    ctx.strokeStyle = jGrad2;
+    ctx.lineWidth = ratio * 1.8;
+    ctx.stroke();
+}
 function drawCalmCanvas(canvas, timestamp) {
     const ctx = canvas.getContext("2d");
     if (!ctx) {
@@ -373,6 +483,18 @@ function drawCalmCanvas(canvas, timestamp) {
         ctx.font = `${Math.round(13 * ratio)}px system-ui, -apple-system, sans-serif`;
         ctx.textAlign = "center";
         ctx.fillText(count === 1 ? "1 focus day" : `${count} focus days`, width / 2, height - 20 * ratio);
+    }
+    // Black hole — appears at 14 focus days, drifts very slowly
+    if (count >= 14) {
+        const bhFadeIn = Math.min((count - 14) / 18, 1);
+        const bhR = Math.min(width, height) * 0.12;
+        const bhX = width * 0.50
+            + Math.sin(t * 0.016) * width * 0.13
+            + Math.sin(t * 0.006) * width * 0.055;
+        const bhY = height * 0.44
+            + Math.cos(t * 0.013) * height * 0.11
+            + Math.cos(t * 0.005) * height * 0.045;
+        drawBlackHole(ctx, bhX, bhY, bhR, t, bhFadeIn, ratio);
     }
     // Planets — appear at focus day thresholds
     const planetSpecs = [
