@@ -247,7 +247,7 @@ function buildConstellationGeometry(count) {
         s: 0.4 + seededRand(i * 4 + 3) * 1.2,
     }));
     cachedEdges = [];
-    const THRESHOLD = 0.118;
+    const THRESHOLD = 0.14;
     cachedStars.forEach((star, i) => {
         const neighbors = [];
         cachedStars.forEach((other, j) => {
@@ -265,95 +265,12 @@ function buildConstellationGeometry(count) {
             .sort((a, b) => a.dist - b.dist)
             .slice(0, 2)
             .forEach(({ j, dist }) => {
-            const shouldConnect = seededRand(i * 97 + j * 13) > 0.38;
+            const shouldConnect = seededRand(i * 97 + j * 13) > 0.24;
             if (shouldConnect) {
-                cachedEdges.push({ i, j, a: (1 - dist / THRESHOLD) * 0.18 });
+                cachedEdges.push({ i, j, a: (1 - dist / THRESHOLD) * 0.22 });
             }
         });
     });
-}
-function drawBlackHole(ctx, bx, by, br, t, fadeIn, ratio) {
-    const tilt = -0.03 + Math.sin(t * 0.018) * 0.012;
-    const inner = br * 1.18;
-    const outer = br * 2.25;
-    const rings = 9;
-    const flatY = 0.27;
-    const blueWash = ctx.createRadialGradient(bx - br * 1.7, by + br * 0.8, 0, bx, by, br * 5.1);
-    blueWash.addColorStop(0, `rgba(70, 82, 170, ${fadeIn * 0.1})`);
-    blueWash.addColorStop(0.46, `rgba(44, 63, 145, ${fadeIn * 0.045})`);
-    blueWash.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.beginPath();
-    ctx.arc(bx - br * 1.1, by + br * 0.55, br * 4.7, 0, Math.PI * 2);
-    ctx.fillStyle = blueWash;
-    ctx.fill();
-    const halo = ctx.createRadialGradient(bx, by, br * 0.9, bx, by, br * 3.4);
-    halo.addColorStop(0, `rgba(255, 222, 165, ${fadeIn * 0.08})`);
-    halo.addColorStop(0.32, `rgba(210, 155, 95, ${fadeIn * 0.05})`);
-    halo.addColorStop(0.64, `rgba(130, 92, 70, ${fadeIn * 0.018})`);
-    halo.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.beginPath();
-    ctx.arc(bx, by, br * 3.4, 0, Math.PI * 2);
-    ctx.fillStyle = halo;
-    ctx.fill();
-    const diskGradient = ctx.createLinearGradient(bx - br * 2.7, by, bx + br * 2.7, by);
-    diskGradient.addColorStop(0, `rgba(205, 185, 145, ${fadeIn * 0.02})`);
-    diskGradient.addColorStop(0.38, `rgba(255, 231, 188, ${fadeIn * 0.15})`);
-    diskGradient.addColorStop(0.58, `rgba(238, 177, 100, ${fadeIn * 0.12})`);
-    diskGradient.addColorStop(1, `rgba(170, 115, 72, ${fadeIn * 0.02})`);
-    ctx.save();
-    ctx.translate(bx, by);
-    ctx.rotate(tilt);
-    ctx.scale(1, flatY);
-    for (let ri = rings - 1; ri >= 0; ri -= 1) {
-        const frac = ri / (rings - 1);
-        const radius = inner + frac * (outer - inner);
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, Math.PI, 0, false);
-        ctx.strokeStyle = diskGradient;
-        ctx.globalAlpha = Math.pow(1 - frac, 0.85) * fadeIn * 0.42;
-        ctx.lineWidth = br * 0.26;
-        ctx.stroke();
-    }
-    ctx.restore();
-    ctx.globalAlpha = 1;
-    const bodyGrad = ctx.createRadialGradient(bx, by, br * 0.35, bx, by, br * 1.1);
-    bodyGrad.addColorStop(0, `rgba(0,0,6,${fadeIn})`);
-    bodyGrad.addColorStop(0.86, `rgba(0,0,9,${fadeIn})`);
-    bodyGrad.addColorStop(1, `rgba(72,88,134,${fadeIn * 0.4})`);
-    ctx.beginPath();
-    ctx.arc(bx, by, br * 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = bodyGrad;
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(bx, by, br, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(0,0,0,${fadeIn})`;
-    ctx.fill();
-    ctx.save();
-    ctx.translate(bx, by);
-    ctx.rotate(tilt);
-    ctx.scale(1, flatY);
-    for (let ri = rings - 1; ri >= 0; ri -= 1) {
-        const frac = ri / (rings - 1);
-        const radius = inner + frac * (outer - inner);
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, 0, Math.PI, false);
-        ctx.strokeStyle = diskGradient;
-        ctx.globalAlpha = Math.pow(1 - frac, 0.72) * fadeIn * 0.76;
-        ctx.lineWidth = br * 0.29;
-        ctx.stroke();
-    }
-    ctx.restore();
-    ctx.globalAlpha = 1;
-    ctx.save();
-    ctx.translate(bx, by);
-    ctx.rotate(tilt);
-    ctx.scale(1, flatY * 0.7);
-    ctx.beginPath();
-    ctx.arc(0, 0, br * 1.22, Math.PI * 0.15, Math.PI * 0.85, false);
-    ctx.strokeStyle = `rgba(210, 225, 255, ${fadeIn * 0.2})`;
-    ctx.lineWidth = ratio * 0.9;
-    ctx.stroke();
-    ctx.restore();
 }
 function drawCalmCanvas(canvas, timestamp) {
     const ctx = canvas.getContext("2d");
@@ -441,106 +358,79 @@ function drawCalmCanvas(canvas, timestamp) {
         ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha})`;
         ctx.fill();
     });
-    const bhFadeIn = smoothstep(21, 28, days);
-    if (bhFadeIn > 0) {
-        const bhScale = 0.085 + smoothstep(28, 365, days) * 0.035;
-        const bhR = Math.min(width, height) * bhScale;
-        const bhX = width * 0.29 + Math.sin(t * 0.006) * width * 0.01;
-        const bhY = height * 0.53 + Math.cos(t * 0.005) * height * 0.012;
-        drawBlackHole(ctx, bhX, bhY, bhR, t, bhFadeIn, ratio);
+    const showerPeriod = 15;
+    const showerSeed = Math.floor(t / showerPeriod);
+    const showerPhase = (t % showerPeriod) / showerPeriod;
+    if (showerPhase < 0.18) {
+        for (let meteor = 0; meteor < 4; meteor += 1) {
+            const localPhase = showerPhase * 5.6 - meteor * 0.2;
+            if (localPhase < 0 || localPhase > 1) {
+                continue;
+            }
+            const seedBase = 3000 + meteor * 120;
+            const progress = localPhase;
+            const mx0 = width * (0.08 + seededRand(seedBase + showerSeed * 5) * 0.82);
+            const my0 = height * (0.04 + seededRand(seedBase + showerSeed * 5 + 1) * 0.54);
+            const angle = 0.12 + seededRand(seedBase + showerSeed * 5 + 2) * 0.23;
+            const len = (115 + seededRand(seedBase + showerSeed * 5 + 3) * 145) * ratio;
+            const speed = 0.82 + seededRand(seedBase + showerSeed * 5 + 4) * 0.36;
+            const headX = mx0 + Math.cos(angle) * len * progress * speed;
+            const headY = my0 + Math.sin(angle) * len * progress * speed;
+            const trailFrac = Math.min(progress * 1.8, 1) * 0.54;
+            const tailX = headX - Math.cos(angle) * len * trailFrac;
+            const tailY = headY - Math.sin(angle) * len * trailFrac;
+            const alpha = progress < 0.42 ? progress / 0.42 : (1 - progress) / 0.58;
+            const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
+            trailGrad.addColorStop(0, "rgba(255,255,255,0)");
+            trailGrad.addColorStop(0.58, `rgba(185, 212, 255, ${alpha * 0.32})`);
+            trailGrad.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.76})`);
+            ctx.beginPath();
+            ctx.moveTo(tailX, tailY);
+            ctx.lineTo(headX, headY);
+            ctx.strokeStyle = trailGrad;
+            ctx.lineWidth = (0.8 + meteor * 0.11) * ratio;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(headX, headY, 1.35 * ratio, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.82})`;
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(headX, headY, 4.2 * ratio, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(185, 215, 255, ${alpha * 0.13})`;
+            ctx.fill();
+        }
     }
-    const planetSpecs = [
-        { threshold: 60, rgb: "140, 196, 238", darkRgb: "23, 61, 114", baseR: 7, ring: false, nx: 0.77, ny: 0.38 },
-        { threshold: 140, rgb: "226, 191, 148", darkRgb: "80, 49, 22", baseR: 10, ring: true, nx: 0.84, ny: 0.68 },
-        { threshold: 240, rgb: "198, 170, 235", darkRgb: "58, 44, 110", baseR: 8, ring: false, nx: 0.18, ny: 0.28 },
-    ];
-    planetSpecs.forEach(({ threshold, rgb, darkRgb, baseR, ring, nx, ny }, pi) => {
-        if (days < threshold) {
-            return;
-        }
-        const fadeIn = smoothstep(threshold, threshold + 24, days) * 0.7;
-        const pr = baseR * ratio;
-        const px = width * nx + Math.sin(t * 0.006 + pi * 2.4) * 4 * ratio;
-        const py = height * ny + Math.cos(t * 0.005 + pi * 2.4) * 3 * ratio;
-        if (ring) {
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.scale(1, 0.28);
+    const rareLongMeteorPeriod = 45;
+    const rareLongMeteorPhase = (t % rareLongMeteorPeriod) / rareLongMeteorPeriod;
+    if (rareLongMeteorPhase < 0.045) {
+        const rareSeed = Math.floor(t / rareLongMeteorPeriod);
+        const progress = rareLongMeteorPhase / 0.045;
+        if (progress >= 0 && progress <= 1) {
+            const mx0 = width * (0.16 + seededRand(4200 + rareSeed * 4) * 0.55);
+            const my0 = height * (0.12 + seededRand(4201 + rareSeed * 4) * 0.36);
+            const angle = 0.06 + seededRand(4202 + rareSeed * 4) * 0.13;
+            const len = (190 + seededRand(4203 + rareSeed * 4) * 160) * ratio;
+            const headX = mx0 + Math.cos(angle) * len * progress;
+            const headY = my0 + Math.sin(angle) * len * progress;
+            const tailX = headX - Math.cos(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
+            const tailY = headY - Math.sin(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
+            const alpha = progress < 0.45 ? progress / 0.45 : (1 - progress) / 0.55;
+            const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
+            trailGrad.addColorStop(0, "rgba(255,255,255,0)");
+            trailGrad.addColorStop(0.48, `rgba(170, 205, 255, ${alpha * 0.34})`);
+            trailGrad.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.86})`);
             ctx.beginPath();
-            ctx.arc(0, 0, pr * 2.5, Math.PI, 0, false);
-            ctx.strokeStyle = `rgba(205, 172, 118, ${fadeIn * 0.3})`;
-            ctx.lineWidth = pr * 0.34;
+            ctx.moveTo(tailX, tailY);
+            ctx.lineTo(headX, headY);
+            ctx.strokeStyle = trailGrad;
+            ctx.lineWidth = 1.25 * ratio;
             ctx.stroke();
-            ctx.restore();
-        }
-        const bodyGrad = ctx.createRadialGradient(px - pr * 0.32, py - pr * 0.36, pr * 0.04, px + pr * 0.08, py + pr * 0.12, pr * 1.25);
-        bodyGrad.addColorStop(0, `rgba(${rgb}, ${fadeIn})`);
-        bodyGrad.addColorStop(0.58, `rgba(${darkRgb}, ${fadeIn * 0.88})`);
-        bodyGrad.addColorStop(1, `rgba(0, 0, 0, ${fadeIn * 0.55})`);
-        ctx.beginPath();
-        ctx.arc(px, py, pr, 0, Math.PI * 2);
-        ctx.fillStyle = bodyGrad;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(px, py, pr * 1.18, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${rgb}, ${fadeIn * 0.05})`;
-        ctx.fill();
-        if (ring) {
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.scale(1, 0.28);
             ctx.beginPath();
-            ctx.arc(0, 0, pr * 2.5, 0, Math.PI, false);
-            ctx.strokeStyle = `rgba(215, 185, 128, ${fadeIn * 0.42})`;
-            ctx.lineWidth = pr * 0.34;
-            ctx.stroke();
-            ctx.restore();
+            ctx.arc(headX, headY, 1.9 * ratio, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.86})`;
+            ctx.fill();
         }
-    });
-    const meteorSlots = [
-        { threshold: 14, period: 41, seedBase: 3000 },
-        { threshold: 180, period: 67, seedBase: 3100 },
-    ];
-    meteorSlots.forEach(({ threshold, period, seedBase }) => {
-        if (days < threshold) {
-            return;
-        }
-        const seed = Math.floor(t / period);
-        const phase = (t % period) / period;
-        if (phase >= 0.045) {
-            return;
-        }
-        const progress = phase / 0.045;
-        const mx0 = width * (0.33 + seededRand(seedBase + seed * 4) * 0.48);
-        const my0 = height * (0.2 + seededRand(seedBase + seed * 4 + 1) * 0.42);
-        const angle = 0.05 + seededRand(seedBase + seed * 4 + 2) * 0.18;
-        const len = (85 + seededRand(seedBase + seed * 4 + 3) * 90) * ratio;
-        const headX = mx0 + Math.cos(angle) * len * progress;
-        const headY = my0 + Math.sin(angle) * len * progress;
-        const trailFrac = Math.min(progress * 1.9, 1) * 0.5;
-        const tailX = headX - Math.cos(angle) * len * trailFrac;
-        const tailY = headY - Math.sin(angle) * len * trailFrac;
-        const alpha = progress < 0.55 ? progress / 0.55 : (1 - progress) / 0.45;
-        // Trail
-        const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
-        trailGrad.addColorStop(0, "rgba(255,255,255,0)");
-        trailGrad.addColorStop(0.6, `rgba(200, 220, 255, ${alpha * 0.3})`);
-        trailGrad.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.72})`);
-        ctx.beginPath();
-        ctx.moveTo(tailX, tailY);
-        ctx.lineTo(headX, headY);
-        ctx.strokeStyle = trailGrad;
-        ctx.lineWidth = 1.15 * ratio;
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(headX, headY, 1.6 * ratio, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.78})`;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(headX, headY, 4.4 * ratio, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(200, 225, 255, ${alpha * 0.16})`;
-        ctx.fill();
-    });
+    }
     const vignette = ctx.createRadialGradient(width * 0.5, height * 0.5, Math.min(width, height) * 0.3, width * 0.5, height * 0.5, Math.max(width, height) * 0.72);
     vignette.addColorStop(0, "rgba(0,0,0,0)");
     vignette.addColorStop(1, "rgba(0,0,0,0.48)");
