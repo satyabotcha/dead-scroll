@@ -232,8 +232,8 @@ function smoothstep(edge0, edge1, value) {
 }
 function getVisibleConstellationStarCount(days) {
     const progress = clamp(days, 0, 365) / 365;
-    // Days are the seed of richness, but visible stars are capped so the sky stays calm at a full year.
-    return Math.round(10 + 170 * Math.pow(progress, 0.68));
+    // Keep the first days sparse and sacred; fullness should arrive as depth, not visual noise.
+    return Math.round(4 + 156 * Math.pow(progress, 0.82));
 }
 function buildConstellationGeometry(count) {
     if (count === cachedGeometryCount) {
@@ -247,7 +247,7 @@ function buildConstellationGeometry(count) {
         s: 0.4 + seededRand(i * 4 + 3) * 1.2,
     }));
     cachedEdges = [];
-    const THRESHOLD = 0.17;
+    const THRESHOLD = 0.118;
     cachedStars.forEach((star, i) => {
         const neighbors = [];
         cachedStars.forEach((other, j) => {
@@ -263,9 +263,12 @@ function buildConstellationGeometry(count) {
         });
         neighbors
             .sort((a, b) => a.dist - b.dist)
-            .slice(0, 3)
+            .slice(0, 2)
             .forEach(({ j, dist }) => {
-            cachedEdges.push({ i, j, a: (1 - dist / THRESHOLD) * 0.22 });
+            const shouldConnect = seededRand(i * 97 + j * 13) > 0.38;
+            if (shouldConnect) {
+                cachedEdges.push({ i, j, a: (1 - dist / THRESHOLD) * 0.18 });
+            }
         });
     });
 }
@@ -276,17 +279,17 @@ function drawBlackHole(ctx, bx, by, br, t, fadeIn, ratio) {
     const rings = 9;
     const flatY = 0.27;
     const blueWash = ctx.createRadialGradient(bx - br * 1.7, by + br * 0.8, 0, bx, by, br * 5.1);
-    blueWash.addColorStop(0, `rgba(82, 93, 190, ${fadeIn * 0.16})`);
-    blueWash.addColorStop(0.46, `rgba(55, 76, 170, ${fadeIn * 0.07})`);
+    blueWash.addColorStop(0, `rgba(70, 82, 170, ${fadeIn * 0.1})`);
+    blueWash.addColorStop(0.46, `rgba(44, 63, 145, ${fadeIn * 0.045})`);
     blueWash.addColorStop(1, "rgba(0,0,0,0)");
     ctx.beginPath();
     ctx.arc(bx - br * 1.1, by + br * 0.55, br * 4.7, 0, Math.PI * 2);
     ctx.fillStyle = blueWash;
     ctx.fill();
     const halo = ctx.createRadialGradient(bx, by, br * 0.9, bx, by, br * 3.4);
-    halo.addColorStop(0, `rgba(255, 222, 165, ${fadeIn * 0.11})`);
-    halo.addColorStop(0.32, `rgba(210, 155, 95, ${fadeIn * 0.07})`);
-    halo.addColorStop(0.64, `rgba(130, 92, 70, ${fadeIn * 0.025})`);
+    halo.addColorStop(0, `rgba(255, 222, 165, ${fadeIn * 0.08})`);
+    halo.addColorStop(0.32, `rgba(210, 155, 95, ${fadeIn * 0.05})`);
+    halo.addColorStop(0.64, `rgba(130, 92, 70, ${fadeIn * 0.018})`);
     halo.addColorStop(1, "rgba(0,0,0,0)");
     ctx.beginPath();
     ctx.arc(bx, by, br * 3.4, 0, Math.PI * 2);
@@ -294,8 +297,8 @@ function drawBlackHole(ctx, bx, by, br, t, fadeIn, ratio) {
     ctx.fill();
     const diskGradient = ctx.createLinearGradient(bx - br * 2.7, by, bx + br * 2.7, by);
     diskGradient.addColorStop(0, `rgba(205, 185, 145, ${fadeIn * 0.02})`);
-    diskGradient.addColorStop(0.38, `rgba(255, 231, 188, ${fadeIn * 0.2})`);
-    diskGradient.addColorStop(0.58, `rgba(238, 177, 100, ${fadeIn * 0.16})`);
+    diskGradient.addColorStop(0.38, `rgba(255, 231, 188, ${fadeIn * 0.15})`);
+    diskGradient.addColorStop(0.58, `rgba(238, 177, 100, ${fadeIn * 0.12})`);
     diskGradient.addColorStop(1, `rgba(170, 115, 72, ${fadeIn * 0.02})`);
     ctx.save();
     ctx.translate(bx, by);
@@ -365,20 +368,20 @@ function drawCalmCanvas(canvas, timestamp) {
     const habitProgress = smoothstep(0, 365, days);
     const starCount = getVisibleConstellationStarCount(days);
     const constellationProgress = smoothstep(1, 120, days);
-    const nebulaDepth = 0.035 + smoothstep(7, 365, days) * 0.13;
+    const nebulaDepth = 0.018 + smoothstep(7, 365, days) * 0.075;
     ctx.clearRect(0, 0, width, height);
     const bg = ctx.createLinearGradient(0, 0, width, height);
-    bg.addColorStop(0, "#050a15");
-    bg.addColorStop(0.44, "#071122");
-    bg.addColorStop(0.72, "#060a15");
-    bg.addColorStop(1, "#030712");
+    bg.addColorStop(0, "#02050d");
+    bg.addColorStop(0.42, "#030816");
+    bg.addColorStop(0.72, "#020611");
+    bg.addColorStop(1, "#01030a");
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
     const nebulae = [
-        { nx: 0.72, ny: 0.34, r: 0.34, rgb: "45, 126, 170", phase: 1.7, base: 0.78 },
-        { nx: 0.21, ny: 0.55, r: 0.37, rgb: "69, 74, 175", phase: 0.2, base: 0.9 },
-        { nx: 0.51, ny: 0.81, r: 0.27, rgb: "165, 56, 112", phase: 3.4, base: 0.62 },
-        { nx: 0.46, ny: 0.42, r: 0.24, rgb: "57, 87, 153", phase: 5.1, base: 0.5 },
+        { nx: 0.72, ny: 0.34, r: 0.36, rgb: "34, 108, 155", phase: 1.7, base: 0.72 },
+        { nx: 0.2, ny: 0.55, r: 0.38, rgb: "54, 60, 155", phase: 0.2, base: 0.74 },
+        { nx: 0.51, ny: 0.82, r: 0.29, rgb: "132, 42, 92", phase: 3.4, base: 0.45 },
+        { nx: 0.47, ny: 0.4, r: 0.26, rgb: "38, 70, 130", phase: 5.1, base: 0.36 },
     ];
     nebulae.forEach(({ nx, ny, r, rgb, phase, base }) => {
         const pulse = 1 + Math.sin(t * 0.055 + phase) * 0.055;
@@ -392,11 +395,11 @@ function drawCalmCanvas(canvas, timestamp) {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
     });
-    const dustCount = Math.round(90 + habitProgress * 90);
+    const dustCount = Math.round(45 + habitProgress * 80);
     for (let i = 0; i < dustCount; i += 1) {
         const dx = seededRand(5000 + i * 4) * width;
         const dy = seededRand(5001 + i * 4) * height;
-        const da = (0.025 + seededRand(5002 + i * 4) * 0.08) * (0.65 + habitProgress * 0.35);
+        const da = (0.018 + seededRand(5002 + i * 4) * 0.06) * (0.6 + habitProgress * 0.34);
         const ds = (0.24 + seededRand(5003 + i * 4) * 0.46) * ratio;
         ctx.beginPath();
         ctx.arc(dx, dy, ds, 0, Math.PI * 2);
@@ -407,18 +410,18 @@ function drawCalmCanvas(canvas, timestamp) {
     cachedEdges.forEach(({ i, j, a }) => {
         const sa = cachedStars[i];
         const sb = cachedStars[j];
-        const alpha = a * (0.18 + constellationProgress * 0.82);
+        const alpha = a * (0.1 + constellationProgress * 0.72);
         ctx.beginPath();
         ctx.moveTo(sa.x * width, sa.y * height);
         ctx.lineTo(sb.x * width, sb.y * height);
-        ctx.strokeStyle = `rgba(125, 167, 226, ${alpha})`;
-        ctx.lineWidth = 0.46 * ratio;
+        ctx.strokeStyle = `rgba(110, 152, 218, ${alpha})`;
+        ctx.lineWidth = 0.4 * ratio;
         ctx.stroke();
     });
     cachedStars.forEach((star, i) => {
         const tw = Math.sin(t * (0.055 + star.s * 0.052) + i * 2.3) * 0.075;
         const twinkle = 0.86 + tw;
-        const alpha = (0.18 + star.b * 0.72) * twinkle * (0.55 + constellationProgress * 0.45);
+        const alpha = (0.2 + star.b * 0.68) * twinkle * (0.68 + constellationProgress * 0.32);
         const parallax = (seededRand(i * 4 + 6) - 0.5) * 5 * ratio;
         const sx = star.x * width + Math.sin(t * 0.008 + i) * parallax;
         const sy = star.y * height + Math.cos(t * 0.007 + i * 0.7) * parallax;
@@ -430,7 +433,7 @@ function drawCalmCanvas(canvas, timestamp) {
         if (star.b > 0.55) {
             ctx.beginPath();
             ctx.arc(sx, sy, size * (4.8 + habitProgress * 1.8), 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha * 0.08})`;
+            ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha * 0.065})`;
             ctx.fill();
         }
         ctx.beginPath();
@@ -540,7 +543,7 @@ function drawCalmCanvas(canvas, timestamp) {
     });
     const vignette = ctx.createRadialGradient(width * 0.5, height * 0.5, Math.min(width, height) * 0.3, width * 0.5, height * 0.5, Math.max(width, height) * 0.72);
     vignette.addColorStop(0, "rgba(0,0,0,0)");
-    vignette.addColorStop(1, "rgba(0,0,0,0.34)");
+    vignette.addColorStop(1, "rgba(0,0,0,0.48)");
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
 }
