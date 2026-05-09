@@ -15,6 +15,13 @@ declare const chrome: {
       ): void;
       set(items: Record<string, unknown>): void;
     };
+    local: {
+      get(
+        keys: string | string[],
+        callback: (result: Record<string, unknown>) => void
+      ): void;
+      set(items: Record<string, unknown>): void;
+    };
     onChanged: {
       addListener(
         callback: (changes: Record<string, ExtensionStorageChange>, areaName: string) => void

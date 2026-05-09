@@ -86,3 +86,55 @@ small {
   outline: 2px solid #1a73e8;
   outline-offset: 2px;
 }
+
+.preview-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.preview-header strong {
+  font-size: 14px;
+  color: #606060;
+  font-weight: normal;
+}
+
+.preview-header span {
+  font-size: 13px;
+  color: #0f0f0f;
+  font-weight: 600;
+  min-width: 28px;
+  text-align: right;
+}
+
+input[type="range"] {
+  width: 100%;
+  height: 4px;
+  appearance: none;
+  background: #e0e0e0;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #0f0f0f;
+  cursor: pointer;
+}
+
+input[type="range"]:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
