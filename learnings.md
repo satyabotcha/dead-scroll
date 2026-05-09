@@ -64,3 +64,7 @@
 ### 2026-05-09 LinkedIn nests the feed layout under multiple mains
 **Context:** Chrome testing against the real logged-in LinkedIn feed still showed sidebars and posts.
 **Learning:** The real feed can nest profile/sidebar, composer, feed cards, and news rails under nested `main` wrappers. Start from the composer and climb upward, hiding sibling branches around the composer until the feed layout root instead of assuming a flat main.
+
+### 2026-05-09 LinkedIn feed should be top chrome only
+**Context:** The user marked the exact LinkedIn surfaces to keep.
+**Learning:** On LinkedIn feed, keep only the top chrome for search, My Network, Jobs, Messaging, Me, and For Business. Hide the feed body entirely, including composer, sidebars, news, puzzles, floating messaging drawer, Home, Notifications, and Sales Nav.
