@@ -7,8 +7,6 @@
 <style>
   :root {
     color-scheme: dark;
-    --ink: rgba(246, 249, 255, 0.94);
-    --soft: rgba(220, 230, 255, 0.56);
   }
 
   * { box-sizing: border-box; }
@@ -37,7 +35,7 @@
     left: 16px;
     z-index: 2;
     display: grid;
-    grid-template-columns: auto minmax(120px, 420px) auto auto auto;
+    grid-template-columns: auto minmax(120px, 1fr) auto auto auto;
     align-items: center;
     gap: 10px;
     width: min(360px, calc(100vw - 32px));
@@ -109,201 +107,68 @@
 <script>
 "use strict";
 
+const TARGET_IMAGE_SRC = "prototype-assets/zodiac-target-board.png";
+const GRID_COLS = 4;
+const GRID_ROWS = 3;
+const CANVAS_MAX_DEVICE_PIXEL_RATIO = 1.75;
+
 const canvas = document.getElementById("sky");
 const ctx = canvas.getContext("2d");
 const daySlider = document.getElementById("day-slider");
 const dayCount = document.getElementById("day-count");
+const targetImage = new Image();
+
 let width = 0;
 let height = 0;
 let ratio = 1;
 let day = Number(daySlider.value);
 let startedAt = performance.now();
+let targetLoaded = false;
 
-const WHITE = [245, 249, 255];
-
-const signs = [
-  {
-    name: "Leo",
-    anchors: [[.26,.42],[.35,.28],[.50,.22],[.64,.31],[.69,.45],[.57,.54],[.40,.55],[.45,.68],[.41,.84],[.65,.70],[.68,.86],[.82,.50],[.89,.32],[.80,.18]],
-    strokes: [
-      [[.35,.28],[.22,.34],[.20,.50],[.30,.60], 1.0],
-      [[.35,.28],[.46,.14],[.61,.18],[.64,.31], 0.9],
-      [[.64,.31],[.76,.37],[.73,.52],[.57,.54], 0.72],
-      [[.57,.54],[.47,.62],[.34,.61],[.30,.60], 0.7],
-      [[.44,.39],[.54,.41],[.62,.43],[.69,.45], 0.38],
-      [[.45,.68],[.58,.78],[.78,.70],[.82,.50], 0.82],
-      [[.61,.30],[.76,.23],[.91,.33],[.82,.50], 0.58],
-      [[.45,.68],[.42,.77],[.38,.82],[.41,.84], 0.46],
-      [[.65,.70],[.70,.80],[.66,.85],[.68,.86], 0.46],
-      [[.82,.50],[.96,.44],[.96,.24],[.80,.18], 0.56],
-      [[.80,.18],[.89,.16],[.93,.22],[.89,.32], 0.34]
-    ]
-  },
-  {
-    name: "Virgo",
-    anchors: [[.43,.20],[.54,.28],[.58,.44],[.50,.60],[.36,.80],[.56,.78],[.71,.58],[.76,.38],[.84,.28]],
-    strokes: [
-      [[.43,.20],[.52,.13],[.62,.21],[.54,.28], 0.62],
-      [[.54,.28],[.68,.42],[.61,.55],[.50,.60], 0.76],
-      [[.50,.60],[.39,.66],[.32,.76],[.36,.80], 0.54],
-      [[.50,.60],[.57,.72],[.66,.78],[.56,.78], 0.56],
-      [[.58,.44],[.71,.40],[.79,.34],[.84,.28], 0.42],
-      [[.84,.28],[.79,.44],[.77,.54],[.71,.58], 0.36],
-      [[.45,.35],[.41,.48],[.43,.58],[.50,.60], 0.38]
-    ]
-  },
-  {
-    name: "Libra",
-    anchors: [[.18,.62],[.36,.62],[.50,.62],[.64,.62],[.82,.62],[.50,.24],[.37,.42],[.63,.42],[.25,.43],[.75,.43]],
-    strokes: [
-      [[.18,.62],[.34,.63],[.66,.63],[.82,.62], 0.58],
-      [[.37,.42],[.39,.23],[.61,.23],[.63,.42], 0.7],
-      [[.37,.42],[.45,.50],[.55,.50],[.63,.42], 0.42],
-      [[.25,.43],[.31,.36],[.37,.37],[.37,.42], 0.36],
-      [[.63,.42],[.63,.37],[.70,.36],[.75,.43], 0.36],
-      [[.50,.24],[.50,.36],[.50,.50],[.50,.62], 0.28]
-    ]
-  },
-  {
-    name: "Scorpio",
-    anchors: [[.18,.52],[.32,.42],[.48,.48],[.58,.62],[.72,.58],[.82,.44],[.74,.28],[.62,.24],[.88,.22]],
-    strokes: [
-      [[.18,.52],[.25,.35],[.41,.36],[.48,.48], 0.56],
-      [[.48,.48],[.55,.66],[.70,.72],[.72,.58], 0.72],
-      [[.72,.58],[.91,.54],[.91,.34],[.74,.28], 0.58],
-      [[.74,.28],[.69,.17],[.61,.18],[.62,.24], 0.36],
-      [[.62,.24],[.72,.15],[.85,.14],[.88,.22], 0.34],
-      [[.32,.42],[.30,.56],[.40,.63],[.50,.58], 0.34]
-    ]
-  },
-  {
-    name: "Sagittarius",
-    anchors: [[.14,.68],[.33,.62],[.48,.50],[.58,.36],[.82,.18],[.66,.56],[.76,.72],[.40,.78],[.26,.82]],
-    strokes: [
-      [[.14,.68],[.30,.70],[.45,.61],[.48,.50], 0.58],
-      [[.48,.50],[.52,.38],[.57,.34],[.58,.36], 0.42],
-      [[.58,.36],[.66,.27],[.74,.20],[.82,.18], 0.36],
-      [[.48,.50],[.62,.50],[.70,.53],[.66,.56], 0.44],
-      [[.66,.56],[.79,.62],[.82,.72],[.76,.72], 0.4],
-      [[.40,.78],[.32,.88],[.24,.88],[.26,.82], 0.34],
-      [[.38,.62],[.50,.72],[.61,.70],[.66,.56], 0.36]
-    ]
-  },
-  {
-    name: "Capricorn",
-    anchors: [[.20,.34],[.36,.20],[.54,.32],[.62,.52],[.50,.70],[.66,.82],[.86,.72],[.80,.52],[.30,.58]],
-    strokes: [
-      [[.20,.34],[.28,.18],[.47,.18],[.54,.32], 0.66],
-      [[.54,.32],[.70,.42],[.72,.56],[.62,.52], 0.54],
-      [[.62,.52],[.55,.62],[.48,.66],[.50,.70], 0.56],
-      [[.50,.70],[.62,.90],[.87,.84],[.86,.72], 0.6],
-      [[.86,.72],[.98,.60],[.92,.48],[.80,.52], 0.38],
-      [[.30,.58],[.42,.52],[.55,.51],[.62,.52], 0.36]
-    ]
-  },
-  {
-    name: "Aquarius",
-    anchors: [[.10,.38],[.28,.30],[.44,.40],[.60,.30],[.88,.38],[.10,.62],[.30,.54],[.48,.64],[.66,.54],[.90,.62]],
-    strokes: [
-      [[.10,.38],[.24,.20],[.36,.52],[.44,.40], 0.46],
-      [[.44,.40],[.54,.26],[.70,.24],[.88,.38], 0.46],
-      [[.10,.62],[.25,.44],[.39,.76],[.48,.64], 0.46],
-      [[.48,.64],[.58,.50],[.74,.48],[.90,.62], 0.46]
-    ]
-  },
-  {
-    name: "Pisces",
-    anchors: [[.32,.30],[.14,.50],[.32,.70],[.46,.50],[.68,.30],[.86,.50],[.68,.70],[.54,.50],[.50,.50]],
-    strokes: [
-      [[.46,.50],[.38,.22],[.14,.24],[.14,.50], 0.46],
-      [[.14,.50],[.15,.76],[.38,.78],[.46,.50], 0.46],
-      [[.54,.50],[.62,.22],[.86,.24],[.86,.50], 0.46],
-      [[.86,.50],[.85,.76],[.62,.78],[.54,.50], 0.46],
-      [[.46,.50],[.49,.48],[.51,.48],[.54,.50], 0.26]
-    ]
-  },
-  {
-    name: "Aries",
-    anchors: [[.50,.74],[.34,.52],[.20,.38],[.28,.18],[.44,.28],[.66,.52],[.80,.38],[.72,.18],[.56,.28]],
-    strokes: [
-      [[.50,.74],[.33,.66],[.24,.48],[.20,.38], 0.62],
-      [[.20,.38],[.10,.16],[.33,.08],[.44,.28], 0.54],
-      [[.50,.74],[.67,.66],[.76,.48],[.80,.38], 0.62],
-      [[.80,.38],[.90,.16],[.67,.08],[.56,.28], 0.54]
-    ]
-  },
-  {
-    name: "Taurus",
-    anchors: [[.50,.58],[.34,.46],[.22,.24],[.06,.22],[.42,.26],[.66,.46],[.78,.24],[.94,.22],[.58,.26],[.50,.80]],
-    strokes: [
-      [[.50,.58],[.38,.54],[.32,.48],[.34,.46], 0.54],
-      [[.34,.46],[.23,.40],[.11,.34],[.06,.22], 0.46],
-      [[.34,.46],[.31,.30],[.42,.22],[.42,.26], 0.38],
-      [[.50,.58],[.62,.54],[.68,.48],[.66,.46], 0.54],
-      [[.66,.46],[.77,.40],[.89,.34],[.94,.22], 0.46],
-      [[.66,.46],[.69,.30],[.58,.22],[.58,.26], 0.38],
-      [[.50,.58],[.44,.68],[.46,.78],[.50,.80], 0.36]
-    ]
-  },
-  {
-    name: "Gemini",
-    anchors: [[.34,.18],[.32,.48],[.30,.78],[.48,.34],[.48,.66],[.66,.18],[.68,.48],[.70,.78]],
-    strokes: [
-      [[.34,.18],[.26,.32],[.25,.64],[.30,.78], 0.48],
-      [[.66,.18],[.74,.32],[.75,.64],[.70,.78], 0.48],
-      [[.34,.18],[.45,.11],[.56,.11],[.66,.18], 0.38],
-      [[.30,.78],[.43,.88],[.58,.88],[.70,.78], 0.38],
-      [[.48,.34],[.53,.46],[.53,.56],[.48,.66], 0.3]
-    ]
-  },
-  {
-    name: "Cancer",
-    anchors: [[.32,.36],[.14,.50],[.32,.64],[.47,.50],[.68,.36],[.86,.50],[.68,.64],[.53,.50]],
-    strokes: [
-      [[.47,.50],[.38,.30],[.15,.28],[.14,.50], 0.48],
-      [[.14,.50],[.16,.72],[.39,.70],[.47,.50], 0.48],
-      [[.53,.50],[.62,.30],[.85,.28],[.86,.50], 0.48],
-      [[.86,.50],[.84,.72],[.61,.70],[.53,.50], 0.48],
-      [[.36,.44],[.44,.48],[.56,.52],[.64,.56], 0.28]
-    ]
-  }
-];
-
-function seeded(seed) {
-  const s = Math.sin(seed * 127.1) * 43758.5453123;
-  return s - Math.floor(s);
-}
-
-const dust = Array.from({ length: 210 }, (_, i) => ({
-  x: seeded(i + 10),
-  y: seeded(i + 100),
-  r: 0.25 + seeded(i + 200) * 0.9,
-  a: 0.035 + seeded(i + 300) * 0.18,
-  p: seeded(i + 400) * Math.PI * 2
-}));
+targetImage.src = TARGET_IMAGE_SRC;
+targetImage.addEventListener("load", () => {
+  targetLoaded = true;
+});
 
 function resize() {
-  ratio = Math.min(window.devicePixelRatio || 1, 1.75);
+  ratio = Math.min(window.devicePixelRatio || 1, CANVAS_MAX_DEVICE_PIXEL_RATIO);
   width = Math.floor(innerWidth * ratio);
   height = Math.floor(innerHeight * ratio);
   canvas.width = width;
   canvas.height = height;
 }
 
-function cubic(a, b, c, d, t) {
-  const mt = 1 - t;
-  return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d;
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
-function drawSky(time) {
+function ease(value) {
+  const x = clamp(value, 0, 1);
+  return x * x * (3 - 2 * x);
+}
+
+function seeded(seed) {
+  const s = Math.sin(seed * 127.1) * 43758.5453123;
+  return s - Math.floor(s);
+}
+
+const dust = Array.from({ length: 180 }, (_, i) => ({
+  x: seeded(i + 10),
+  y: seeded(i + 100),
+  r: 0.22 + seeded(i + 200) * 0.72,
+  a: 0.025 + seeded(i + 300) * 0.14,
+  p: seeded(i + 400) * Math.PI * 2
+}));
+
+function drawBackdrop(time) {
   const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "#030610");
-  bg.addColorStop(0.46, "#050a18");
+  bg.addColorStop(0, "#020510");
+  bg.addColorStop(0.52, "#040918");
   bg.addColorStop(1, "#00030a");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
-  const haze = ctx.createRadialGradient(width * 0.5, height * 0.54, 0, width * 0.5, height * 0.54, Math.min(width, height) * 0.72);
+  const haze = ctx.createRadialGradient(width * 0.5, height * 0.5, 0, width * 0.5, height * 0.5, Math.min(width, height) * 0.72);
   haze.addColorStop(0, "rgba(70, 105, 160, 0.055)");
   haze.addColorStop(1, "rgba(0, 0, 0, 0)");
   ctx.fillStyle = haze;
@@ -319,137 +184,130 @@ function drawSky(time) {
   }
 }
 
-function getBoardLayout() {
+function getTargetRect() {
+  const imageAspect = targetImage.naturalWidth / targetImage.naturalHeight;
   const cssWidth = width / ratio;
-  const headerSpace = (cssWidth < 760 ? 58 : 54) * ratio;
-  const marginX = (cssWidth < 760 ? 18 : 34) * ratio;
-  const marginBottom = (cssWidth < 760 ? 60 : 66) * ratio;
-  const boardY = headerSpace;
-  const boardW = Math.min(width - marginX * 2, 360 * ratio);
-  const boardH = height - boardY - marginBottom;
+  const availableTop = 52 * ratio;
+  const availableBottom = 14 * ratio;
+  const availableWidth = Math.min(width - 38 * ratio, 300 * ratio);
+  const availableHeight = height - availableTop - availableBottom;
+  let drawWidth = availableWidth;
+  let drawHeight = drawWidth / imageAspect;
 
-  const cols = 4;
-
-  const rows = Math.ceil(signs.length / cols);
-  return {
-    cols,
-    rows,
-    boardX: marginX,
-    boardY,
-    cellW: boardW / cols,
-    cellH: Math.min(boardH / rows, 112 * ratio)
-  };
-}
-
-function pointInCell(point, cell) {
-  const pad = Math.min(cell.w, cell.h) * 0.1;
-  const size = Math.min(cell.w - pad * 2, cell.h - pad * 2);
-  const x0 = cell.x + cell.w * 0.5 - size * 0.5;
-  const y0 = cell.y + cell.h * 0.52 - size * 0.5;
-  return [x0 + point[0] * size, y0 + point[1] * size];
-}
-
-function ease(value) {
-  const x = Math.min(1, Math.max(0, value));
-  return x * x * (3 - 2 * x);
-}
-
-function drawCurve(stroke, cell, reveal, alpha, widthMul) {
-  if (reveal <= 0) return;
-
-  const [p0, p1, p2, p3] = stroke;
-  const [r, g, b] = WHITE;
-  const steps = Math.max(8, Math.floor(56 * reveal));
-
-  ctx.beginPath();
-  for (let i = 0; i <= steps; i += 1) {
-    const t = reveal * (i / steps);
-    const x = cubic(p0[0], p1[0], p2[0], p3[0], t);
-    const y = cubic(p0[1], p1[1], p2[1], p3[1], t);
-    const [sx, sy] = pointInCell([x, y], cell);
-    if (i === 0) ctx.moveTo(sx, sy);
-    else ctx.lineTo(sx, sy);
+  if (drawHeight > availableHeight) {
+    drawHeight = availableHeight;
+    drawWidth = drawHeight * imageAspect;
   }
 
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  ctx.lineWidth = Math.max(0.55 * ratio, widthMul * ratio);
-  ctx.stroke();
-}
-
-function strokeReveal(strokeIndex, strokeCount) {
-  const start = (strokeIndex / Math.max(1, strokeCount)) * 20;
-  const end = start + 8 + (strokeIndex % 3) * 1.6;
-  return ease((day - start) / (end - start));
-}
-
-function anchorReveal(anchorIndex, anchorCount) {
-  const start = (anchorIndex / Math.max(1, anchorCount - 1)) * 21;
-  return ease((day - start) / 6.5);
-}
-
-function drawSign(sign, index, layout, time) {
-  const col = index % layout.cols;
-  const row = Math.floor(index / layout.cols);
-  const cell = {
-    x: layout.boardX + col * layout.cellW,
-    y: layout.boardY + row * layout.cellH,
-    w: layout.cellW,
-    h: layout.cellH
+  return {
+    x: cssWidth < 700 ? 18 * ratio : (width - drawWidth) / 2,
+    y: availableTop + Math.max(18 * ratio, (availableHeight - drawHeight) * 0.42),
+    w: drawWidth,
+    h: drawHeight
   };
+}
 
+function drawTargetImage(rect, alpha = 1) {
   ctx.save();
-  ctx.globalCompositeOperation = "screen";
-
-  sign.strokes.forEach((stroke, strokeIndex) => {
-    const reveal = strokeReveal(strokeIndex, sign.strokes.length);
-
-    // Keep a barely visible destination trace so the month feels like discovery, not a sudden drawing.
-    drawCurve(stroke, cell, 1, 0.028, stroke[4] * 0.55);
-
-    ctx.shadowBlur = 7 * ratio;
-    ctx.shadowColor = "rgba(245, 249, 255, 0.26)";
-    drawCurve(stroke, cell, reveal, 0.12 + reveal * 0.08, stroke[4] * 1.2);
-    ctx.shadowBlur = 0;
-    drawCurve(stroke, cell, reveal, 0.22 + reveal * 0.48, stroke[4] * 0.54);
-    drawCurve(stroke, cell, reveal, 0.14 + reveal * 0.12, stroke[4] * 0.2);
-  });
-
-  sign.anchors.forEach((point, anchorIndex) => {
-    const reveal = anchorReveal(anchorIndex, sign.anchors.length);
-    if (reveal <= 0) return;
-
-    const [x, y] = pointInCell(point, cell);
-    const pulse = 0.86 + Math.sin(time * 1.2 + index * 0.8 + anchorIndex) * 0.08;
-    const starSize = (0.55 + seeded(index * 80 + anchorIndex) * 0.54) * ratio * reveal;
-
-    ctx.beginPath();
-    ctx.arc(x, y, starSize * 3.6, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(245, 249, 255, ${0.026 * reveal})`;
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(x, y, starSize * pulse, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${0.18 + reveal * 0.7})`;
-    ctx.fill();
-  });
-
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(targetImage, rect.x, rect.y, rect.w, rect.h);
   ctx.restore();
 }
 
-function drawBoard(time) {
-  const layout = getBoardLayout();
+function withCellClip(renderCtx, rect, cellIndex, draw) {
+  const col = cellIndex % GRID_COLS;
+  const row = Math.floor(cellIndex / GRID_COLS);
+  const cellW = rect.w / GRID_COLS;
+  const cellH = rect.h / GRID_ROWS;
+  const padX = -cellW * 0.012;
+  const padY = -cellH * 0.018;
+  const x = rect.x + col * cellW + padX;
+  const y = rect.y + row * cellH + padY;
+  const w = cellW - padX * 2;
+  const h = cellH - padY * 2;
 
-  signs.forEach((sign, index) => {
-    drawSign(sign, index, layout, time);
-  });
+  renderCtx.save();
+  renderCtx.beginPath();
+  renderCtx.rect(x, y, w, h);
+  renderCtx.clip();
+  draw({ x, y, w, h, cellW, cellH });
+  renderCtx.restore();
+}
+
+function drawRevealMask(renderCtx, cell, cellIndex, progress, time) {
+  const anchors = 3 + (cellIndex % 4);
+  const sweep = ease((progress - 0.12) / 0.76);
+
+  renderCtx.fillStyle = "rgba(255, 255, 255, 0.18)";
+  renderCtx.fillRect(cell.x, cell.y, cell.w * sweep, cell.h);
+
+  for (let i = 0; i < anchors; i += 1) {
+    const appear = ease((progress - i * 0.09) / 0.34);
+    if (appear <= 0) continue;
+
+    const ax = cell.x + (0.18 + seeded(cellIndex * 21 + i) * 0.64) * cell.w;
+    const ay = cell.y + (0.18 + seeded(cellIndex * 27 + i) * 0.64) * cell.h;
+    const pulse = 0.92 + Math.sin(time * 0.9 + cellIndex + i) * 0.08;
+    const radius = (cell.w * (0.13 + i * 0.028)) * appear * pulse;
+
+    const glow = renderCtx.createRadialGradient(ax, ay, 0, ax, ay, radius);
+    glow.addColorStop(0, "rgba(255, 255, 255, 1)");
+    glow.addColorStop(0.42, "rgba(255, 255, 255, 0.62)");
+    glow.addColorStop(1, "rgba(255, 255, 255, 0)");
+    renderCtx.fillStyle = glow;
+    renderCtx.beginPath();
+    renderCtx.arc(ax, ay, radius, 0, Math.PI * 2);
+    renderCtx.fill();
+  }
+
+  if (progress > 0.72) {
+    renderCtx.fillStyle = `rgba(255, 255, 255, ${(progress - 0.72) / 0.28})`;
+    renderCtx.fillRect(cell.x, cell.y, cell.w, cell.h);
+  }
+}
+
+function drawProgression(rect, time) {
+  const progress = day / 30;
+
+  if (progress >= 0.995) {
+    drawTargetImage(rect, 1);
+    return;
+  }
+
+  // The target image is the source of truth; this faint pass keeps the final composition visible while progress is low.
+  drawTargetImage(rect, 0.1 + progress * 0.05);
+
+  const mask = document.createElement("canvas");
+  mask.width = width;
+  mask.height = height;
+  const maskCtx = mask.getContext("2d");
+
+  if (!maskCtx) {
+    return;
+  }
+
+  for (let cellIndex = 0; cellIndex < GRID_COLS * GRID_ROWS; cellIndex += 1) {
+    const localProgress = ease((progress + 0.1 - cellIndex * 0.006) / 0.78);
+    withCellClip(maskCtx, rect, cellIndex, (cell) => drawRevealMask(maskCtx, cell, cellIndex, localProgress, time));
+  }
+
+  ctx.save();
+  ctx.drawImage(targetImage, rect.x, rect.y, rect.w, rect.h);
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.drawImage(mask, 0, 0);
+  ctx.restore();
 }
 
 function render() {
   const time = (performance.now() - startedAt) / 1000;
-  drawSky(time);
-  drawBoard(time);
+
+  drawBackdrop(time);
+
+  if (targetLoaded) {
+    const rect = getTargetRect();
+    drawProgression(rect, time);
+  }
+
   requestAnimationFrame(render);
 }
 

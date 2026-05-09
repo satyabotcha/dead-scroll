@@ -44,3 +44,7 @@
 ### 2026-05-09 Local prototype browser preview
 **Context:** We previewed standalone HTML canvas prototypes from Codex.
 **Learning:** The in-app browser blocks direct `file://` loads. Serve prototype HTML from the repo with a small local HTTP server, then open it through `localhost`.
+
+### 2026-05-09 Zodiac art source of truth
+**Context:** We prototyped zodiac progression after generating a reference image.
+**Learning:** Hand-coded constellation paths can validate reveal mechanics but drift from the generated art direction. For visual approval, use the generated board itself as the day-30 target and layer progression masks over it before translating anything into production canvas code.
