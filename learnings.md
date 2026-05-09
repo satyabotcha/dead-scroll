@@ -31,7 +31,7 @@
 
 ### 2026-05-09 X should feel like YouTube focus chrome
 **Context:** The stripped X layout still felt awkward because it retained the side-rail structure.
-**Learning:** Prefer a consistent top-chrome shape across sites: logo top-left, native search centered, account top-right, and creation surface below. Collapse X side rails visually instead of leaving empty columns; keep the home composer controls available.
+**Learning:** Prefer a consistent top-chrome shape across sites: logo top-left, native search centered, account top-right. Collapse X side rails visually instead of leaving empty columns, and hide posting/composer surfaces when the product goal is search-only intentional use.
 
 ### 2026-05-09 LinkedIn feed route and DOM quirks
 **Context:** LinkedIn feed cleanup missed real logged-in layouts.

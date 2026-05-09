@@ -29,6 +29,11 @@ const DISTRACTING_PRIMARY_NAV_SELECTORS = [
 
 const GLOBAL_DISTRACTION_SELECTORS = [
   "button[aria-label='Skip to trending']",
+  "a[href='/compose/post']",
+  "[data-testid='SideNav_NewTweet_Button']",
+  "[data-testid='tweetButtonInline']",
+  "div[role='dialog']:has([data-testid='tweetTextarea_0'])",
+  "div[role='dialog']:has([aria-label='Post text'])",
   "[data-testid='sidebarColumn'] section",
   "[data-testid='sidebarColumn'] [aria-label='Trending']",
   "[data-testid='sidebarColumn'] [aria-label='Who to follow']",
@@ -51,10 +56,22 @@ const GLOBAL_DISTRACTION_SELECTORS = [
 const HOME_PAGE_SELECTORS = [
   "main [role='tablist']",
   "main [role='status']",
+  "main [data-testid='cellInnerDiv']:has([data-testid='tweetTextarea_0'])",
+  "main [data-testid='cellInnerDiv']:has([aria-label='Post text'])",
+  "main [data-testid='tweetTextarea_0']",
+  "main [aria-label='Post text']",
+  "main button[aria-label='Post']",
   "main [data-testid='cellInnerDiv']:has(article)",
   "main article",
   "main [data-testid='trend']",
   "main [data-testid='UserCell']"
+] as const;
+
+const COMPOSE_PAGE_SELECTORS = [
+  "main",
+  "div[role='dialog']",
+  "[data-testid='tweetTextarea_0']",
+  "[aria-label='Post text']"
 ] as const;
 
 const EXPLORE_PAGE_SELECTORS = [
@@ -228,6 +245,12 @@ function installFeedBlocker(): void {
 
     html[data-feed-remover-x-focus-mode="true"][data-feed-remover-x-page="explore"] ${EXPLORE_PAGE_SELECTORS.join(
       ",\n    html[data-feed-remover-x-focus-mode=\"true\"][data-feed-remover-x-page=\"explore\"] "
+    )} {
+      display: none !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"][data-feed-remover-x-page="compose"] ${COMPOSE_PAGE_SELECTORS.join(
+      ",\n    html[data-feed-remover-x-focus-mode=\"true\"][data-feed-remover-x-page=\"compose\"] "
     )} {
       display: none !important;
     }
