@@ -32,3 +32,7 @@
 ### 2026-05-09 X profile routes reuse timeline labels
 **Context:** We added X support while preserving profiles and direct post pages.
 **Learning:** X can expose profile pages under generic labels like `Home timeline`, so never hide timeline-shaped DOM based on accessibility labels alone. Mark the current route first, then apply feed/removal selectors only on feed routes like `/home`, `/explore`, and `/notifications`.
+
+### 2026-05-09 LinkedIn feed selectors need route and DOM fallbacks
+**Context:** The first LinkedIn blocker worked on an assumed fixture but missed the user's real feed.
+**Learning:** LinkedIn feed classes drift quickly and the logged-in feed can appear from `/` as well as `/feed/`. Hide feed pages by route plus feed-surface signatures like activity URNs, finite-scroll items, impression containers, and actor components.

@@ -8,18 +8,39 @@ const FEED_PATH_PREFIXES = ["/feed"] as const;
 const NOTIFICATIONS_PATH_PREFIXES = ["/notifications"] as const;
 
 const GLOBAL_DISTRACTION_SELECTORS = [
+  ".global-nav__primary-item:has(a[href*='/feed/'])",
   ".global-nav__primary-item:has(a[href*='/notifications/'])",
+  "li:has(> a[href*='/feed/'])",
   "li:has(> a[href*='/notifications/'])",
+  "a[href*='/feed/'][aria-label*='Home']",
   "a[href*='/notifications/'][aria-label*='Notifications']"
 ] as const;
 
 const FEED_PAGE_SELECTORS = [
+  "main",
+  "main[role='main']",
+  ".scaffold-layout__main",
   ".share-box-feed-entry",
   ".feed-shared-update-v2",
+  ".fie-impression-container",
   ".scaffold-finite-scroll",
+  "[data-finite-scroll-hotkey-item]",
+  "[data-urn*='urn:li:activity']",
+  "[data-id*='urn:li:activity']",
+  ".update-components-actor",
   ".scaffold-layout__sidebar",
   ".scaffold-layout__aside",
   "aside"
+] as const;
+
+const FEED_SURFACE_SELECTORS = [
+  ".share-box-feed-entry",
+  ".feed-shared-update-v2",
+  ".fie-impression-container",
+  "[data-finite-scroll-hotkey-item]",
+  "[data-urn*='urn:li:activity']",
+  "[data-id*='urn:li:activity']",
+  ".update-components-actor"
 ] as const;
 
 const NOTIFICATIONS_PAGE_SELECTORS = [
@@ -29,9 +50,12 @@ const NOTIFICATIONS_PAGE_SELECTORS = [
 ] as const;
 
 const GLOBAL_DISTRACTION_HEADINGS = [
+  "add to your feed",
+  "based on your profile",
   "linkedin news",
   "people you may know",
-  "add to your feed",
+  "promoted",
+  "recommended for you",
   "who viewed your profile",
   "profile viewers",
   "today's news"
@@ -89,8 +113,12 @@ function pathStartsWith(prefixes: readonly string[]): boolean {
   return prefixes.some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`));
 }
 
+function hasFeedSurface(): boolean {
+  return FEED_SURFACE_SELECTORS.some((selector) => document.querySelector(selector));
+}
+
 function updatePageMarker(): void {
-  if (pathStartsWith(FEED_PATH_PREFIXES)) {
+  if (pathStartsWith(FEED_PATH_PREFIXES) || (location.pathname === "/" && hasFeedSurface())) {
     document.documentElement.dataset.feedRemoverLinkedinPage = "feed";
     return;
   }
