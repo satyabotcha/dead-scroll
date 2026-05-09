@@ -6,11 +6,13 @@ const HIDDEN_ATTRIBUTE = "data-feed-remover-x-hidden";
 
 const DISTRACTING_PRIMARY_NAV_SELECTORS = [
   "[data-testid='AppTabBar_Home_Link']",
+  "[data-testid='AppTabBar_Explore_Link']",
   "[data-testid='AppTabBar_Notifications_Link']",
   "[data-testid='AppTabBar_Messages_Link']",
   "[data-testid='AppTabBar_Bookmarks_Link']",
   "[data-testid='AppTabBar_Communities_Link']",
   "nav[aria-label='Primary'] a[href='/home']",
+  "nav[aria-label='Primary'] a[href='/explore']",
   "nav[aria-label='Primary'] a[href^='/i/connect_people']",
   "nav[aria-label='Primary'] a[href^='/notifications']",
   "nav[aria-label='Primary'] a[href^='/messages']",
@@ -25,11 +27,11 @@ const DISTRACTING_PRIMARY_NAV_SELECTORS = [
 
 const GLOBAL_DISTRACTION_SELECTORS = [
   "button[aria-label='Skip to trending']",
-  "div:has(> [data-testid='sidebarColumn'])",
-  "[data-testid='sidebarColumn']",
+  "[data-testid='sidebarColumn'] section",
   "[data-testid='sidebarColumn'] [aria-label='Trending']",
   "[data-testid='sidebarColumn'] [aria-label='Who to follow']",
   "[data-testid='sidebarColumn'] [aria-label='Relevant people']",
+  "[data-testid='sidebarColumn'] [aria-label*='Timeline: Trending' i]",
   "[data-testid='sidebarColumn'] [data-testid='trend']",
   "[data-testid='sidebarColumn'] [data-testid='UserCell']",
   "[data-testid='sidebarColumn'] nav[aria-label='Footer']",
@@ -46,6 +48,8 @@ const GLOBAL_DISTRACTION_SELECTORS = [
 
 const HOME_PAGE_SELECTORS = [
   "main [aria-label='Home timeline']",
+  "main [aria-label='Timeline: Your Home Timeline']",
+  "main [aria-label*='Home Timeline' i]",
   "main [role='tablist']",
   "main [role='status']",
   "main [data-testid='tweetTextarea_0']",
@@ -119,6 +123,7 @@ const DISTRACTING_HEADINGS = [
 const DISTRACTING_PRIMARY_NAV_LABELS = new Set([
   "articles",
   "chat",
+  "explore",
   "follow",
   "grok",
   "home",
