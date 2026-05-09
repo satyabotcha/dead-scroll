@@ -25,6 +25,7 @@ const DISTRACTING_PRIMARY_NAV_SELECTORS = [
 
 const GLOBAL_DISTRACTION_SELECTORS = [
   "button[aria-label='Skip to trending']",
+  "div:has(> [data-testid='sidebarColumn'])",
   "[data-testid='sidebarColumn']",
   "[data-testid='sidebarColumn'] [aria-label='Trending']",
   "[data-testid='sidebarColumn'] [aria-label='Who to follow']",
@@ -33,12 +34,24 @@ const GLOBAL_DISTRACTION_SELECTORS = [
   "[data-testid='sidebarColumn'] [data-testid='UserCell']",
   "[data-testid='sidebarColumn'] nav[aria-label='Footer']",
   "[data-testid='sidebarColumn'] section:has(a[href='/i/flow/signup'])",
-  "[aria-label='Trending']"
+  "[aria-label='Trending']",
+  "[data-testid='DMDrawer']",
+  "[data-testid='DMDrawerHeader']",
+  "[data-testid='GrokDrawer']",
+  "[data-testid='GrokDrawer_Button']",
+  "button[aria-label='Grok']",
+  "button[aria-label='Messages']",
+  "button[aria-label='Open Grok']"
 ] as const;
 
 const HOME_PAGE_SELECTORS = [
+  "main [aria-label='Home timeline']",
   "main [role='tablist']",
   "main [role='status']",
+  "main [data-testid='tweetTextarea_0']",
+  "main [aria-label='Post text']",
+  "main a[href='/compose/post']",
+  "main button[aria-label='Post']",
   "main [data-testid='cellInnerDiv']",
   "main [data-testid='cellInnerDiv']:has(article)",
   "main article",

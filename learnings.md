@@ -37,6 +37,10 @@
 **Context:** The first X cleanup hid too much nav and left the page feeling half-erased.
 **Learning:** In the user's logged-in X layout, the magnifying-glass left-nav item is labeled `Explore` but functions as the search entry. Preserve that item, then remove route content/trends separately.
 
+### 2026-05-09 X home needs shell cleanup
+**Context:** X home still looked wrong after feed cards were removed.
+**Learning:** Feed-card selectors are not enough on X home; the composer, `Home timeline` shell, right-rail parent, and floating Grok/messages drawers can survive and make the page feel broken. Hide those only on the home route or with narrow global drawer/sidebar selectors.
+
 ### 2026-05-09 LinkedIn feed selectors need route and DOM fallbacks
 **Context:** The first LinkedIn blocker worked on an assumed fixture but missed the user's real feed.
 **Learning:** LinkedIn feed classes drift quickly and the logged-in feed can appear from `/` as well as `/feed/`. Hide feed pages by route plus feed-surface signatures like activity URNs, finite-scroll items, impression containers, and actor components.
