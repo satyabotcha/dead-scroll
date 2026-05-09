@@ -86,6 +86,9 @@ const STYLE_ID = "social-media-feed-remover-youtube";
 const LEGACY_VISUAL_SHELL_ID = "monk-mode-visual-shell";
 const CALM_CANVAS_ID = "feed-remover-calm-canvas";
 const YOUTUBE_SETTINGS_KEY = "focusMode";
+const CONSTELLATION_PREVIEW_KEY = "constellationPreviewDays";
+const CONSTELLATION_FOCUS_DAYS_KEY = "constellationFocusDays";
+const CONSTELLATION_LAST_DATE_KEY = "constellationLastDate";
 const YOUTUBE_DEFAULT_FOCUS_MODE = true;
 const AUTOPLAY_TOGGLE_SELECTOR = ".ytp-autonav-toggle-button[aria-checked]";
 const AUTOPLAY_CLICK_COOLDOWN_MS = 750;
@@ -128,6 +131,10 @@ let playbackRateBeforeAd = 1;
 let mutedBeforeAd = false;
 let calmCanvasAnimationFrame = 0;
 let calmCanvasResizeObserver: ResizeObserver | null = null;
+let effectiveStarCount = 0;
+let cachedGeometryCount = -1;
+let cachedStars: Array<{ x: number; y: number; b: number; s: number }> = [];
+let cachedEdges: Array<{ i: number; j: number; a: number }> = [];
 
 function installFeedBlocker(): void {
   const existingStyle = document.getElementById(STYLE_ID);
@@ -184,10 +191,7 @@ function installFeedBlocker(): void {
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
-      background:
-        radial-gradient(circle at 22% 26%, rgba(210, 232, 226, 0.52), transparent 26rem),
-        radial-gradient(circle at 78% 36%, rgba(209, 225, 244, 0.42), transparent 28rem),
-        linear-gradient(180deg, #ffffff 0%, #f7fbff 48%, #f1faf5 100%);
+      background: #080c18;
     }
 
     #${CALM_CANVAS_ID} canvas {
@@ -233,88 +237,126 @@ function resizeCalmCanvas(canvas: HTMLCanvasElement): void {
   }
 }
 
-function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
-  const context = canvas.getContext("2d");
+function seededRand(seed: number): number {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
 
-  if (!context) {
+function buildConstellationGeometry(count: number): void {
+  if (count === cachedGeometryCount) {
+    return;
+  }
+
+  cachedGeometryCount = count;
+  cachedStars = Array.from({ length: count }, (_, i) => ({
+    x: seededRand(i * 4),
+    y: seededRand(i * 4 + 1),
+    b: 0.35 + seededRand(i * 4 + 2) * 0.65,
+    s: 0.4 + seededRand(i * 4 + 3) * 1.2,
+  }));
+
+  cachedEdges = [];
+  const THRESHOLD = 0.18;
+
+  cachedStars.forEach((star, i) => {
+    const neighbors: Array<{ j: number; dist: number }> = [];
+
+    cachedStars.forEach((other, j) => {
+      if (j <= i) {
+        return;
+      }
+
+      const dx = star.x - other.x;
+      const dy = star.y - other.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < THRESHOLD) {
+        neighbors.push({ j, dist });
+      }
+    });
+
+    neighbors
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 3)
+      .forEach(({ j, dist }) => {
+        cachedEdges.push({ i, j, a: (1 - dist / THRESHOLD) * 0.35 });
+      });
+  });
+}
+
+function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
     return;
   }
 
   resizeCalmCanvas(canvas);
 
-  const width = canvas.width;
-  const height = canvas.height;
+  const { width, height } = canvas;
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
   const t = timestamp / 1000;
 
-  context.clearRect(0, 0, width, height);
+  ctx.clearRect(0, 0, width, height);
 
-  const background = context.createLinearGradient(0, 0, 0, height);
-  background.addColorStop(0, "#ffffff");
-  background.addColorStop(0.55, "#f6fbff");
-  background.addColorStop(1, "#eff9f4");
-  context.fillStyle = background;
-  context.fillRect(0, 0, width, height);
+  const bg = ctx.createLinearGradient(0, 0, 0, height);
+  bg.addColorStop(0, "#080c18");
+  bg.addColorStop(1, "#0d1525");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
 
-  const haze = context.createRadialGradient(width * 0.5, height * 0.2, 0, width * 0.5, height * 0.2, width * 0.65);
-  haze.addColorStop(0, "rgba(223, 238, 246, 0.52)");
-  haze.addColorStop(0.55, "rgba(233, 247, 239, 0.32)");
-  haze.addColorStop(1, "rgba(255, 255, 255, 0)");
-  context.fillStyle = haze;
-  context.fillRect(0, 0, width, height);
+  const count = effectiveStarCount;
 
-  context.save();
-  context.globalCompositeOperation = "multiply";
+  if (count < 1) {
+    ctx.fillStyle = "rgba(140, 170, 220, 0.38)";
+    ctx.font = `${Math.round(15 * ratio)}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText("Your constellation awaits", width / 2, height / 2);
+    return;
+  }
 
-  const centers = [
-    [0.22, 0.28, 0],
-    [0.74, 0.36, 2.1],
-    [0.46, 0.72, 4.3]
-  ] as const;
+  buildConstellationGeometry(count);
 
-  centers.forEach(([x, y, offset], centerIndex) => {
-    const centerX = width * x + Math.sin(t * 0.09 + offset) * 18 * ratio;
-    const centerY = height * y + Math.cos(t * 0.075 + offset) * 14 * ratio;
-    const maxRadius = Math.min(width, height) * (0.22 + centerIndex * 0.035);
+  cachedEdges.forEach(({ i, j, a }) => {
+    const sa = cachedStars[i];
+    const sb = cachedStars[j];
 
-    for (let ringIndex = 0; ringIndex < 6; ringIndex += 1) {
-      const progress = (t * 0.045 + ringIndex / 6 + centerIndex * 0.18) % 1;
-      const radius = maxRadius * (0.18 + progress * 0.88);
-      const alpha = (1 - progress) * 0.13;
+    ctx.beginPath();
+    ctx.moveTo(sa.x * width, sa.y * height);
+    ctx.lineTo(sb.x * width, sb.y * height);
+    ctx.strokeStyle = `rgba(150, 195, 255, ${a})`;
+    ctx.lineWidth = 0.55 * ratio;
+    ctx.stroke();
+  });
 
-      context.beginPath();
-      context.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      context.strokeStyle = `rgba(96, 154, 165, ${alpha})`;
-      context.lineWidth = (1.1 + (1 - progress) * 1.7) * ratio;
-      context.stroke();
+  cachedStars.forEach((star, i) => {
+    const twinkle = 0.75 + Math.sin(t * star.s + i * 2.3) * 0.25;
+    const alpha = star.b * twinkle;
+    const sx = star.x * width;
+    const sy = star.y * height;
+    const size = (0.8 + star.b * 1.5) * ratio;
+
+    ctx.beginPath();
+    ctx.arc(sx, sy, size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 250, 235, ${alpha})`;
+    ctx.fill();
+
+    if (star.b > 0.7) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, size * 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(190, 215, 255, ${alpha * 0.12})`;
+      ctx.fill();
     }
   });
 
-  for (let lineIndex = 0; lineIndex < 9; lineIndex += 1) {
-    const baseY = height * (0.2 + lineIndex * 0.075);
-    const drift = Math.sin(t * 0.11 + lineIndex * 0.7) * 10 * ratio;
-
-    context.beginPath();
-    for (let x = -40 * ratio; x <= width + 40 * ratio; x += 28 * ratio) {
-      const y = baseY + drift + Math.sin(x * 0.006 + t * 0.28 + lineIndex) * 8 * ratio;
-
-      if (x === -40 * ratio) {
-        context.moveTo(x, y);
-      } else {
-        context.lineTo(x, y);
-      }
-    }
-    context.strokeStyle = `rgba(128, 178, 165, ${0.035 + lineIndex * 0.004})`;
-    context.lineWidth = 1 * ratio;
-    context.stroke();
-  }
-
-  context.restore();
-
-  context.fillStyle = "rgba(80, 116, 112, 0.58)";
-  context.font = `${Math.round(18 * ratio)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-  context.textAlign = "center";
-  context.fillText("Take a breath", width / 2, Math.min(height * 0.46, 330 * ratio));
+  ctx.fillStyle = "rgba(130, 165, 215, 0.5)";
+  ctx.font = `${Math.round(13 * ratio)}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillText(
+    count === 1 ? "1 focus day" : `${count} focus days`,
+    width / 2,
+    height - 20 * ratio
+  );
 }
 
 function startCalmCanvas(canvas: HTMLCanvasElement): void {
@@ -362,6 +404,32 @@ function ensureCalmCanvas(focusMode: boolean): void {
   startCalmCanvas(canvas);
 }
 
+function trackFocusDay(): void {
+  const today = new Date().toISOString().slice(0, 10);
+
+  chrome.storage.local.get([CONSTELLATION_FOCUS_DAYS_KEY, CONSTELLATION_LAST_DATE_KEY], (result) => {
+    if (result[CONSTELLATION_LAST_DATE_KEY] === today) {
+      return;
+    }
+
+    const newCount = ((result[CONSTELLATION_FOCUS_DAYS_KEY] as number | undefined) ?? 0) + 1;
+
+    chrome.storage.local.set({
+      [CONSTELLATION_FOCUS_DAYS_KEY]: newCount,
+      [CONSTELLATION_LAST_DATE_KEY]: today,
+    });
+  });
+}
+
+function loadConstellationStarCount(): void {
+  chrome.storage.local.get([CONSTELLATION_PREVIEW_KEY, CONSTELLATION_FOCUS_DAYS_KEY], (result) => {
+    const preview = result[CONSTELLATION_PREVIEW_KEY];
+    const real = (result[CONSTELLATION_FOCUS_DAYS_KEY] as number | undefined) ?? 0;
+
+    effectiveStarCount = typeof preview === "number" ? preview : real;
+  });
+}
+
 function setFocusMode(focusMode: boolean): void {
   document.documentElement.dataset.feedRemoverFocusMode = String(focusMode);
   removeLegacyVisualShell();
@@ -369,6 +437,10 @@ function setFocusMode(focusMode: boolean): void {
   applyShortsFilter(focusMode);
   syncAutoplayMode(focusMode);
   processPlayerAds(focusMode);
+
+  if (focusMode) {
+    trackFocusDay();
+  }
 }
 
 function showPreviouslyHiddenShorts(): void {
@@ -541,16 +613,19 @@ function loadSettings(): void {
 }
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "sync" || !(YOUTUBE_SETTINGS_KEY in changes)) {
-    return;
+  if (areaName === "sync" && YOUTUBE_SETTINGS_KEY in changes) {
+    setFocusMode(changes[YOUTUBE_SETTINGS_KEY].newValue !== false);
   }
 
-  setFocusMode(changes[YOUTUBE_SETTINGS_KEY].newValue !== false);
+  if (areaName === "local" && (CONSTELLATION_PREVIEW_KEY in changes || CONSTELLATION_FOCUS_DAYS_KEY in changes)) {
+    loadConstellationStarCount();
+  }
 });
 
 setFocusMode(YOUTUBE_DEFAULT_FOCUS_MODE);
 installFeedBlocker();
 loadSettings();
+loadConstellationStarCount();
 
 const observer = new MutationObserver(() => {
   const focusMode = document.documentElement.dataset.feedRemoverFocusMode === "true";
