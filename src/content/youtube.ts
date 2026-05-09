@@ -138,95 +138,6 @@ let effectiveStarCount = 0;
 let cachedGeometryCount = -1;
 let cachedStars: Array<{ x: number; y: number; b: number; s: number }> = [];
 let cachedEdges: Array<{ i: number; j: number; a: number }> = [];
-let calmWebGLRenderer: CalmWebGLRenderer | null = null;
-
-type CalmWebGLRenderer = {
-  gl: WebGLRenderingContext;
-  program: WebGLProgram;
-  positionBuffer: WebGLBuffer;
-  texture: WebGLTexture;
-  positionLocation: number;
-  textureCount: number;
-  textureWidth: number;
-  textureHeight: number;
-  canvasWidth: number;
-  canvasHeight: number;
-  uniforms: {
-    resolution: WebGLUniformLocation;
-    lens: WebGLUniformLocation;
-    mass: WebGLUniformLocation;
-    time: WebGLUniformLocation;
-  };
-};
-
-const BLACK_HOLE_VERTEX_SHADER = `
-  attribute vec2 a_position;
-  varying vec2 v_uv;
-
-  void main() {
-    v_uv = a_position * 0.5 + 0.5;
-    gl_Position = vec4(a_position, 0.0, 1.0);
-  }
-`;
-
-const BLACK_HOLE_FRAGMENT_SHADER = `
-  precision mediump float;
-
-  uniform sampler2D u_texture;
-  uniform vec2 u_resolution;
-  uniform vec2 u_lens;
-  uniform float u_mass;
-  uniform float u_time;
-  varying vec2 v_uv;
-
-  void main() {
-    vec2 uv = v_uv;
-    vec2 delta = uv - u_lens;
-    float aspect = u_resolution.x / u_resolution.y;
-    vec2 aspectDelta = vec2(delta.x * aspect, delta.y);
-    float dist = length(aspectDelta) + 0.018;
-    float pull = u_mass / (dist * dist);
-    vec2 tangent = vec2(-delta.y, delta.x);
-    vec2 warped = uv - normalize(delta + 0.0001) * pull * 0.016;
-
-    warped += tangent * pull * (0.012 + sin(u_time * 0.16) * 0.004);
-    warped += sin((uv.yx + u_time * 0.018) * 22.0) * pull * 0.0016;
-    warped = clamp(warped, 0.001, 0.999);
-
-    vec3 color = texture2D(u_texture, warped).rgb;
-    float eventHorizon = smoothstep(0.12, 0.065, dist);
-    float ring = exp(-pow((dist - 0.155) / 0.026, 2.0));
-    float outerRing = exp(-pow((dist - 0.245) / 0.07, 2.0));
-    vec3 warmRing = vec3(0.96, 0.74, 0.42) * ring * 0.42;
-    vec3 blueRing = vec3(0.32, 0.62, 0.92) * outerRing * 0.12;
-
-    color += warmRing + blueRing;
-
-    for (int i = 0; i < 3; i++) {
-      float fi = float(i);
-      float period = 11.0 + fi * 4.0;
-      float phase = mod(u_time + fi * 3.7, period) / period;
-      vec2 start = vec2(0.12 + fract(sin(fi * 42.13 + 3.1) * 43758.5453) * 0.72, 0.12 + fract(sin(fi * 17.41 + 8.4) * 43758.5453) * 0.28);
-      vec2 direction = normalize(vec2(0.78, 0.24 + fi * 0.07));
-      vec2 head = start + direction * phase * 0.86;
-      vec2 toPixel = uv - head;
-      float along = dot(toPixel, -direction);
-      float across = length(toPixel + direction * along);
-      float trail = smoothstep(0.18, 0.0, along) * smoothstep(0.0, 0.018, along) * smoothstep(0.012, 0.0, across);
-      float life = phase < 0.18 ? sin(phase / 0.18 * 3.14159265) : 0.0;
-
-      color += vec3(0.88, 0.94, 1.0) * trail * life * 0.95;
-    }
-
-    color = mix(color, vec3(0.0, 0.0, 0.015), eventHorizon * 0.95);
-    color *= 0.88 + smoothstep(0.06, 0.48, dist) * 0.16;
-
-    float vignette = smoothstep(0.92, 0.22, length(uv - 0.5));
-    color *= 0.78 + vignette * 0.28;
-
-    gl_FragColor = vec4(color, 1.0);
-  }
-`;
 
 function installFeedBlocker(): void {
   const existingStyle = document.getElementById(STYLE_ID);
@@ -316,7 +227,6 @@ function removeCalmCanvas(): void {
   calmCanvasResizeObserver?.disconnect();
   calmCanvasResizeObserver = null;
   calmCanvasLastFrameAt = 0;
-  calmWebGLRenderer = null;
   document.getElementById(CALM_CANVAS_ID)?.remove();
 }
 
@@ -378,7 +288,7 @@ function buildConstellationGeometry(count: number): void {
   });
 }
 
-function drawUniverseFallback(canvas: HTMLCanvasElement, timestamp: number): void {
+function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   const ctx = canvas.getContext("2d");
 
   if (!ctx) {
@@ -396,103 +306,133 @@ function drawUniverseFallback(canvas: HTMLCanvasElement, timestamp: number): voi
 
   // Deep space background
   const bg = ctx.createLinearGradient(0, 0, 0, height);
-  bg.addColorStop(0, "#060a14");
-  bg.addColorStop(0.6, "#080e1c");
-  bg.addColorStop(1, "#0b1222");
+  bg.addColorStop(0, "#050810");
+  bg.addColorStop(0.55, "#070c1a");
+  bg.addColorStop(1, "#0a1020");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
-  // Milky Way band — subtle diagonal luminosity
-  const mwGrad = ctx.createRadialGradient(
-    width * 0.55, height * 0.45, 0,
-    width * 0.55, height * 0.45, width * 0.55
+  // Galactic core glow — off-centre warm haze
+  const coreGrad = ctx.createRadialGradient(
+    width * 0.58, height * 0.42, 0,
+    width * 0.58, height * 0.42, width * 0.5
   );
-  mwGrad.addColorStop(0, "rgba(90, 110, 175, 0.055)");
-  mwGrad.addColorStop(0.5, "rgba(70, 90, 155, 0.025)");
-  mwGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-  ctx.fillStyle = mwGrad;
+  coreGrad.addColorStop(0, "rgba(100, 115, 185, 0.06)");
+  coreGrad.addColorStop(0.45, "rgba(75, 90, 160, 0.028)");
+  coreGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = coreGrad;
   ctx.fillRect(0, 0, width, height);
 
-  // Nebula clouds — emerge as count grows
-  const nebulaOpacity = Math.min(count / 25, 1) * 0.14;
+  // Nebula clouds — breathe in and out, emerge as count grows
+  const nebulaBase = Math.min(count / 25, 1) * 0.15;
 
-  if (nebulaOpacity > 0.005) {
+  if (nebulaBase > 0.004) {
     const nebulae = [
-      { nx: 0.18, ny: 0.32, r: 0.38, rgb: "130, 70, 210", phase: 0 },
-      { nx: 0.76, ny: 0.58, r: 0.32, rgb: "35, 150, 195", phase: 1.9 },
-      { nx: 0.52, ny: 0.14, r: 0.28, rgb: "210, 65, 115", phase: 3.6 },
-      { nx: 0.88, ny: 0.22, r: 0.26, rgb: "60, 110, 220", phase: 5.2 },
+      { nx: 0.18, ny: 0.32, r: 0.38, rgb: "128, 65, 215", phase: 0 },
+      { nx: 0.76, ny: 0.58, r: 0.32, rgb: "30, 148, 198", phase: 1.9 },
+      { nx: 0.52, ny: 0.14, r: 0.28, rgb: "215, 60, 110", phase: 3.6 },
+      { nx: 0.88, ny: 0.24, r: 0.26, rgb: "55, 108, 225", phase: 5.2 },
     ];
 
     nebulae.forEach(({ nx, ny, r, rgb, phase }) => {
-      const cx = width * nx + Math.sin(t * 0.055 + phase) * 18 * ratio;
-      const cy = height * ny + Math.cos(t * 0.042 + phase) * 12 * ratio;
+      const pulse = 1 + Math.sin(t * 0.19 + phase) * 0.09;
+      const opacity = nebulaBase * pulse;
+      const cx = width * nx + Math.sin(t * 0.052 + phase) * 16 * ratio;
+      const cy = height * ny + Math.cos(t * 0.04 + phase) * 11 * ratio;
       const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * Math.min(width, height));
-      grad.addColorStop(0, `rgba(${rgb}, ${nebulaOpacity})`);
-      grad.addColorStop(0.45, `rgba(${rgb}, ${nebulaOpacity * 0.35})`);
-      grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      grad.addColorStop(0, `rgba(${rgb}, ${opacity})`);
+      grad.addColorStop(0.45, `rgba(${rgb}, ${opacity * 0.32})`);
+      grad.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
     });
   }
 
+  // Background dust field — always visible, makes space feel deep
+  for (let i = 0; i < 240; i += 1) {
+    const dx = seededRand(5000 + i * 4) * width;
+    const dy = seededRand(5001 + i * 4) * height;
+    const da = 0.07 + seededRand(5002 + i * 4) * 0.16;
+    const ds = (0.28 + seededRand(5003 + i * 4) * 0.42) * ratio;
+    ctx.beginPath();
+    ctx.arc(dx, dy, ds, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(195, 215, 255, ${da})`;
+    ctx.fill();
+  }
+
   if (count < 1) {
-    ctx.fillStyle = "rgba(140, 170, 220, 0.36)";
+    ctx.fillStyle = "rgba(140, 170, 220, 0.38)";
     ctx.font = `${Math.round(15 * ratio)}px system-ui, -apple-system, sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText("Your constellation awaits", width / 2, height * 0.52);
-    return;
-  }
+  } else {
+    buildConstellationGeometry(count);
 
-  buildConstellationGeometry(count);
-
-  // Constellation edges
-  cachedEdges.forEach(({ i, j, a }) => {
-    const sa = cachedStars[i];
-    const sb = cachedStars[j];
-    ctx.beginPath();
-    ctx.moveTo(sa.x * width, sa.y * height);
-    ctx.lineTo(sb.x * width, sb.y * height);
-    ctx.strokeStyle = `rgba(150, 195, 255, ${a})`;
-    ctx.lineWidth = 0.55 * ratio;
-    ctx.stroke();
-  });
-
-  // Stars
-  cachedStars.forEach((star, i) => {
-    const twinkle = 0.75 + Math.sin(t * star.s + i * 2.3) * 0.25;
-    const alpha = star.b * twinkle;
-    const sx = star.x * width;
-    const sy = star.y * height;
-    const size = (0.75 + star.b * 1.6) * ratio;
-
-    // Core
-    ctx.beginPath();
-    ctx.arc(sx, sy, size, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 250, 235, ${alpha})`;
-    ctx.fill();
-
-    // Outer glow
-    if (star.b > 0.65) {
+    // Constellation edges
+    cachedEdges.forEach(({ i, j, a }) => {
+      const sa = cachedStars[i];
+      const sb = cachedStars[j];
       ctx.beginPath();
-      ctx.arc(sx, sy, size * 3.8, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(185, 215, 255, ${alpha * 0.1})`;
-      ctx.fill();
-    }
-
-    // 4-point sparkle cross for the very brightest
-    if (star.b > 0.86) {
-      const armLen = size * 5.5 * (0.82 + Math.sin(t * star.s * 0.5 + i) * 0.18);
-      ctx.strokeStyle = `rgba(255, 252, 240, ${alpha * 0.38})`;
-      ctx.lineWidth = 0.6 * ratio;
-      ctx.beginPath();
-      ctx.moveTo(sx - armLen, sy);
-      ctx.lineTo(sx + armLen, sy);
-      ctx.moveTo(sx, sy - armLen);
-      ctx.lineTo(sx, sy + armLen);
+      ctx.moveTo(sa.x * width, sa.y * height);
+      ctx.lineTo(sb.x * width, sb.y * height);
+      ctx.strokeStyle = `rgba(150, 195, 255, ${a})`;
+      ctx.lineWidth = 0.55 * ratio;
       ctx.stroke();
-    }
-  });
+    });
+
+    // Constellation stars — colour temperature + dual-frequency twinkle
+    cachedStars.forEach((star, i) => {
+      const tw = Math.sin(t * star.s + i * 2.3) * 0.16 + Math.sin(t * star.s * 1.73 + i * 0.9) * 0.09;
+      const twinkle = 0.75 + tw;
+      const alpha = star.b * twinkle;
+      const sx = star.x * width;
+      const sy = star.y * height;
+      const size = (0.72 + star.b * 1.65) * ratio;
+
+      // Colour temperature: cool stars warm-yellow, hot stars blue-white
+      const temp = seededRand(i * 4 + 5);
+      const sr = Math.round(255 - temp * 28);
+      const sg = Math.round(248 - temp * 6);
+      const sb2 = Math.round(218 + temp * 37);
+
+      ctx.beginPath();
+      ctx.arc(sx, sy, size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha})`;
+      ctx.fill();
+
+      // Outer glow
+      if (star.b > 0.62) {
+        ctx.beginPath();
+        ctx.arc(sx, sy, size * 4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha * 0.09})`;
+        ctx.fill();
+      }
+
+      // 8-point sparkle for very brightest
+      if (star.b > 0.85) {
+        const arm = size * 5.8 * (0.8 + Math.sin(t * star.s * 0.48 + i) * 0.2);
+        const diag = arm * 0.6;
+        ctx.strokeStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha * 0.36})`;
+        ctx.lineWidth = 0.55 * ratio;
+        ctx.beginPath();
+        ctx.moveTo(sx - arm, sy); ctx.lineTo(sx + arm, sy);
+        ctx.moveTo(sx, sy - arm); ctx.lineTo(sx, sy + arm);
+        ctx.moveTo(sx - diag, sy - diag); ctx.lineTo(sx + diag, sy + diag);
+        ctx.moveTo(sx + diag, sy - diag); ctx.lineTo(sx - diag, sy + diag);
+        ctx.stroke();
+      }
+    });
+
+    // Focus day count label
+    ctx.fillStyle = "rgba(125, 160, 210, 0.46)";
+    ctx.font = `${Math.round(13 * ratio)}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(
+      count === 1 ? "1 focus day" : `${count} focus days`,
+      width / 2,
+      height - 20 * ratio
+    );
+  }
 
   // Planets — appear at focus day thresholds
   const planetSpecs = [
@@ -512,7 +452,6 @@ function drawUniverseFallback(canvas: HTMLCanvasElement, timestamp: number): voi
     const py = height * (0.12 + seededRand(801 + pi) * 0.72) + Math.cos(t * 0.013 + pi * 2.4) * 6 * ratio;
 
     if (ring) {
-      // Ring behind planet (top arc)
       ctx.save();
       ctx.translate(px, py);
       ctx.scale(1, 0.28);
@@ -524,7 +463,6 @@ function drawUniverseFallback(canvas: HTMLCanvasElement, timestamp: number): voi
       ctx.restore();
     }
 
-    // Planet body
     const bodyGrad = ctx.createRadialGradient(
       px - pr * 0.32, py - pr * 0.36, pr * 0.04,
       px + pr * 0.08, py + pr * 0.12, pr * 1.25
@@ -537,14 +475,12 @@ function drawUniverseFallback(canvas: HTMLCanvasElement, timestamp: number): voi
     ctx.fillStyle = bodyGrad;
     ctx.fill();
 
-    // Atmosphere rim
     ctx.beginPath();
     ctx.arc(px, py, pr * 1.18, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(${rgb}, ${fadeIn * 0.06})`;
     ctx.fill();
 
     if (ring) {
-      // Ring in front of planet (bottom arc)
       ctx.save();
       ctx.translate(px, py);
       ctx.scale(1, 0.28);
@@ -557,333 +493,80 @@ function drawUniverseFallback(canvas: HTMLCanvasElement, timestamp: number): voi
     }
   });
 
-  // Shooting star — fires every ~14 seconds
-  const shootPeriod = 14;
-  const shootSeed = Math.floor(t / shootPeriod);
-  const shootPhase = (t % shootPeriod) / shootPeriod;
+  // Meteors — 3 independent slots on staggered periods
+  const meteorSlots = [
+    { period: 11, seedBase: 3000 },
+    { period: 17, seedBase: 3100 },
+    { period: 23, seedBase: 3200 },
+  ] as const;
 
-  if (shootPhase < 0.065) {
-    const progress = shootPhase / 0.065;
-    const sx0 = seededRand(shootSeed * 4) * width;
-    const sy0 = seededRand(shootSeed * 4 + 1) * height * 0.5;
-    const angle = 0.18 + seededRand(shootSeed * 4 + 2) * 0.22;
-    const len = (90 + seededRand(shootSeed * 4 + 3) * 110) * ratio;
+  meteorSlots.forEach(({ period, seedBase }) => {
+    const seed = Math.floor(t / period);
+    const phase = (t % period) / period;
 
-    const headX = sx0 + Math.cos(angle) * len * progress;
-    const headY = sy0 + Math.sin(angle) * len * progress;
-    const tailX = headX - Math.cos(angle) * len * Math.min(progress * 1.6, 1) * 0.55;
-    const tailY = headY - Math.sin(angle) * len * Math.min(progress * 1.6, 1) * 0.55;
+    if (phase >= 0.07) {
+      return;
+    }
 
-    const shootAlpha = progress < 0.65 ? progress / 0.65 : (1 - progress) / 0.35;
-    const shootGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
-    shootGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
-    shootGrad.addColorStop(1, `rgba(255, 255, 255, ${shootAlpha * 0.92})`);
+    const progress = phase / 0.07;
+    const mx0 = seededRand(seedBase + seed * 4) * width;
+    const my0 = seededRand(seedBase + seed * 4 + 1) * height * 0.55;
+    const angle = 0.14 + seededRand(seedBase + seed * 4 + 2) * 0.28;
+    const len = (95 + seededRand(seedBase + seed * 4 + 3) * 125) * ratio;
 
+    const headX = mx0 + Math.cos(angle) * len * progress;
+    const headY = my0 + Math.sin(angle) * len * progress;
+    const trailFrac = Math.min(progress * 1.9, 1) * 0.5;
+    const tailX = headX - Math.cos(angle) * len * trailFrac;
+    const tailY = headY - Math.sin(angle) * len * trailFrac;
+
+    const alpha = progress < 0.55 ? progress / 0.55 : (1 - progress) / 0.45;
+
+    // Trail
+    const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
+    trailGrad.addColorStop(0, "rgba(255,255,255,0)");
+    trailGrad.addColorStop(0.6, `rgba(200, 220, 255, ${alpha * 0.45})`);
+    trailGrad.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.92})`);
     ctx.beginPath();
     ctx.moveTo(tailX, tailY);
     ctx.lineTo(headX, headY);
-    ctx.strokeStyle = shootGrad;
-    ctx.lineWidth = 1.4 * ratio;
+    ctx.strokeStyle = trailGrad;
+    ctx.lineWidth = 1.6 * ratio;
     ctx.stroke();
-  }
 
-  // Focus day count
-  ctx.fillStyle = "rgba(125, 160, 210, 0.48)";
-  ctx.font = `${Math.round(13 * ratio)}px system-ui, -apple-system, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText(
-    count === 1 ? "1 focus day" : `${count} focus days`,
-    width / 2,
-    height - 20 * ratio
+    // Glowing head
+    ctx.beginPath();
+    ctx.arc(headX, headY, 2.2 * ratio, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.95})`;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(headX, headY, 5.5 * ratio, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(200, 225, 255, ${alpha * 0.22})`;
+    ctx.fill();
+
+    // Spark particles at head
+    for (let sp = 0; sp < 4; sp += 1) {
+      const sparkAngle = angle + (sp - 1.5) * 0.38 + seededRand(seedBase + seed * 20 + sp) * 0.22;
+      const sparkLen = (7 + seededRand(seedBase + seed * 20 + sp + 10) * 11) * ratio * alpha;
+      ctx.beginPath();
+      ctx.moveTo(headX, headY);
+      ctx.lineTo(headX - Math.cos(sparkAngle) * sparkLen, headY - Math.sin(sparkAngle) * sparkLen);
+      ctx.strokeStyle = `rgba(255, 245, 210, ${alpha * 0.52})`;
+      ctx.lineWidth = 0.75 * ratio;
+      ctx.stroke();
+    }
+  });
+
+  // Vignette — focus the eye inward
+  const vignette = ctx.createRadialGradient(
+    width * 0.5, height * 0.5, Math.min(width, height) * 0.3,
+    width * 0.5, height * 0.5, Math.max(width, height) * 0.72
   );
-}
-
-function createShader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader | null {
-  const shader = gl.createShader(type);
-
-  if (!shader) {
-    return null;
-  }
-
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    gl.deleteShader(shader);
-    return null;
-  }
-
-  return shader;
-}
-
-function createBlackHoleProgram(gl: WebGLRenderingContext): WebGLProgram | null {
-  const vertexShader = createShader(gl, gl.VERTEX_SHADER, BLACK_HOLE_VERTEX_SHADER);
-  const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, BLACK_HOLE_FRAGMENT_SHADER);
-
-  if (!vertexShader || !fragmentShader) {
-    return null;
-  }
-
-  const program = gl.createProgram();
-
-  if (!program) {
-    return null;
-  }
-
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-  gl.linkProgram(program);
-  gl.deleteShader(vertexShader);
-  gl.deleteShader(fragmentShader);
-
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    gl.deleteProgram(program);
-    return null;
-  }
-
-  return program;
-}
-
-function drawConstellationTexture(context: CanvasRenderingContext2D, width: number, height: number, count: number): void {
-  const ratio = 1;
-
-  context.clearRect(0, 0, width, height);
-
-  const bg = context.createLinearGradient(0, 0, 0, height);
-  bg.addColorStop(0, "#040812");
-  bg.addColorStop(0.54, "#071022");
-  bg.addColorStop(1, "#09172b");
-  context.fillStyle = bg;
-  context.fillRect(0, 0, width, height);
-
-  const nebulaOpacity = 0.08 + Math.min(count / 120, 1) * 0.16;
-  const nebulae = [
-    { nx: 0.2, ny: 0.32, r: 0.42, rgb: "116, 78, 220" },
-    { nx: 0.72, ny: 0.58, r: 0.34, rgb: "42, 165, 198" },
-    { nx: 0.5, ny: 0.16, r: 0.28, rgb: "207, 70, 120" }
-  ];
-
-  nebulae.forEach(({ nx, ny, r, rgb }) => {
-    const cx = width * nx;
-    const cy = height * ny;
-    const grad = context.createRadialGradient(cx, cy, 0, cx, cy, r * Math.min(width, height));
-    grad.addColorStop(0, `rgba(${rgb}, ${nebulaOpacity})`);
-    grad.addColorStop(0.45, `rgba(${rgb}, ${nebulaOpacity * 0.34})`);
-    grad.addColorStop(1, "rgba(0, 0, 0, 0)");
-    context.fillStyle = grad;
-    context.fillRect(0, 0, width, height);
-  });
-
-  const dustCount = 180;
-
-  for (let i = 0; i < dustCount; i += 1) {
-    const x = seededRand(2000 + i * 3) * width;
-    const y = seededRand(2001 + i * 3) * height;
-    const alpha = 0.12 + seededRand(2002 + i * 3) * 0.18;
-
-    context.beginPath();
-    context.arc(x, y, 0.55 + seededRand(2100 + i) * 0.8, 0, Math.PI * 2);
-    context.fillStyle = `rgba(190, 215, 255, ${alpha})`;
-    context.fill();
-  }
-
-  const starCount = Math.max(24, count);
-  buildConstellationGeometry(starCount);
-
-  cachedEdges.forEach(({ i, j, a }) => {
-    const sa = cachedStars[i];
-    const sb = cachedStars[j];
-    context.beginPath();
-    context.moveTo(sa.x * width, sa.y * height);
-    context.lineTo(sb.x * width, sb.y * height);
-    context.strokeStyle = `rgba(150, 195, 255, ${a * Math.min(count / 45, 1)})`;
-    context.lineWidth = 0.55 * ratio;
-    context.stroke();
-  });
-
-  cachedStars.forEach((star) => {
-    const sx = star.x * width;
-    const sy = star.y * height;
-    const alpha = count < 1 ? star.b * 0.28 : star.b;
-    const size = 0.7 + star.b * 1.55;
-
-    context.beginPath();
-    context.arc(sx, sy, size, 0, Math.PI * 2);
-    context.fillStyle = `rgba(255, 250, 235, ${alpha})`;
-    context.fill();
-
-    if (star.b > 0.72) {
-      context.beginPath();
-      context.arc(sx, sy, size * 3.6, 0, Math.PI * 2);
-      context.fillStyle = `rgba(185, 215, 255, ${alpha * 0.08})`;
-      context.fill();
-    }
-  });
-
-  context.fillStyle = "rgba(145, 178, 225, 0.52)";
-  context.font = "18px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
-  context.textAlign = "center";
-  context.fillText(count < 1 ? "Your constellation awaits" : count === 1 ? "1 focus day" : `${count} focus days`, width / 2, height - 34);
-}
-
-function createConstellationTextureSource(canvas: HTMLCanvasElement, count: number): HTMLCanvasElement | null {
-  const source = document.createElement("canvas");
-  const maxTextureSize = 1400;
-  const aspect = Math.max(canvas.clientWidth / Math.max(canvas.clientHeight, 1), 0.6);
-
-  source.width = Math.round(Math.min(maxTextureSize, Math.max(720, maxTextureSize * Math.min(aspect, 1.6) / 1.6)));
-  source.height = Math.round(source.width / aspect);
-
-  const context = source.getContext("2d");
-
-  if (!context) {
-    return null;
-  }
-
-  drawConstellationTexture(context, source.width, source.height, count);
-  return source;
-}
-
-function uploadBlackHoleTexture(renderer: CalmWebGLRenderer, source: HTMLCanvasElement): void {
-  const { gl, texture } = renderer;
-
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
-
-  renderer.textureCount = effectiveStarCount;
-  renderer.textureWidth = source.width;
-  renderer.textureHeight = source.height;
-}
-
-function createBlackHoleRenderer(canvas: HTMLCanvasElement): CalmWebGLRenderer | null {
-  const gl = canvas.getContext("webgl", {
-    alpha: false,
-    antialias: true,
-    depth: false,
-    stencil: false
-  });
-
-  if (!gl) {
-    return null;
-  }
-
-  const program = createBlackHoleProgram(gl);
-  const positionBuffer = gl.createBuffer();
-  const texture = gl.createTexture();
-
-  if (!program || !positionBuffer || !texture) {
-    return null;
-  }
-
-  const resolution = gl.getUniformLocation(program, "u_resolution");
-  const lens = gl.getUniformLocation(program, "u_lens");
-  const mass = gl.getUniformLocation(program, "u_mass");
-  const time = gl.getUniformLocation(program, "u_time");
-
-  if (!resolution || !lens || !mass || !time) {
-    return null;
-  }
-
-  gl.useProgram(program);
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([
-      -1, -1,
-      1, -1,
-      -1, 1,
-      -1, 1,
-      1, -1,
-      1, 1
-    ]),
-    gl.STATIC_DRAW
-  );
-
-  const positionLocation = gl.getAttribLocation(program, "a_position");
-  gl.enableVertexAttribArray(positionLocation);
-  gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-  gl.uniform1i(gl.getUniformLocation(program, "u_texture"), 0);
-
-  return {
-    gl,
-    program,
-    positionBuffer,
-    texture,
-    positionLocation,
-    textureCount: -1,
-    textureWidth: 0,
-    textureHeight: 0,
-    canvasWidth: 0,
-    canvasHeight: 0,
-    uniforms: {
-      resolution,
-      lens,
-      mass,
-      time
-    }
-  };
-}
-
-function drawBlackHoleCanvas(canvas: HTMLCanvasElement, timestamp: number): boolean {
-  resizeCalmCanvas(canvas);
-
-  const renderer = calmWebGLRenderer ?? createBlackHoleRenderer(canvas);
-
-  if (!renderer) {
-    return false;
-  }
-
-  calmWebGLRenderer = renderer;
-
-  if (
-    renderer.textureCount !== effectiveStarCount ||
-    renderer.canvasWidth !== canvas.width ||
-    renderer.canvasHeight !== canvas.height
-  ) {
-    const source = createConstellationTextureSource(canvas, effectiveStarCount);
-
-    if (!source) {
-      return false;
-    }
-
-    uploadBlackHoleTexture(renderer, source);
-    renderer.canvasWidth = canvas.width;
-    renderer.canvasHeight = canvas.height;
-  }
-
-  const { gl, program, positionBuffer, positionLocation, uniforms } = renderer;
-  const t = timestamp / 1000;
-  const mass = 0.0018 + Math.min(effectiveStarCount, 365) / 365 * 0.0011;
-  const lensX = 0.5 + Math.sin(t * 0.035) * 0.18 + Math.sin(t * 0.011) * 0.08;
-  const lensY = 0.48 + Math.cos(t * 0.029) * 0.12;
-
-  gl.viewport(0, 0, canvas.width, canvas.height);
-  gl.useProgram(program);
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.enableVertexAttribArray(positionLocation);
-  gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, renderer.texture);
-  gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
-  gl.uniform2f(uniforms.lens, lensX, lensY);
-  gl.uniform1f(uniforms.mass, mass);
-  gl.uniform1f(uniforms.time, t);
-  gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-  return true;
-}
-
-function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
-  if (drawBlackHoleCanvas(canvas, timestamp)) {
-    return;
-  }
-
-  drawUniverseFallback(canvas, timestamp);
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(0,0,0,0.42)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, width, height);
 }
 
 function startCalmCanvas(canvas: HTMLCanvasElement): void {
