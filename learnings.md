@@ -68,3 +68,7 @@
 ### 2026-05-08 Search filter chips can sit outside ytd-search
 **Context:** We removed the YouTube search page Shorts chip.
 **Learning:** Do not scope search filter-chip cleanup only under `ytd-search`; some YouTube layouts mount the chip strip as a sibling/header area. Gate by `location.pathname === "/results"` and exact chip text instead.
+
+### 2026-05-09 Multiple content scripts share TypeScript script scope
+**Context:** We added a LinkedIn content script alongside the existing YouTube script.
+**Learning:** Plain `.ts` content scripts without imports/exports are typechecked in one global script scope. Wrap each standalone content script in a top-level block or another local scope to avoid duplicate `const` and function names without emitting module syntax.

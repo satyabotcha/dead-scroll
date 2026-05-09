@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Monk Mode",
   "version": "0.1.0",
-  "description": "Removes distracting social feeds, starting with YouTube.",
+  "description": "Removes distracting social feeds while preserving intentional use.",
   "permissions": ["storage"],
   "action": {
     "default_title": "Monk Mode",
@@ -12,6 +12,11 @@
     {
       "matches": ["https://www.youtube.com/*"],
       "js": ["content/youtube.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.linkedin.com/*"],
+      "js": ["content/linkedin.js"],
       "run_at": "document_idle"
     }
   ]
