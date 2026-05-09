@@ -25,13 +25,9 @@
 **Context:** We added more site scripts alongside YouTube.
 **Learning:** Plain `.ts` content scripts without imports/exports are typechecked in one global script scope. Wrap each standalone content script in a top-level block or another local scope to avoid duplicate names without emitting module syntax.
 
-### 2026-05-09 X route labels are misleading
-**Context:** X support needed to preserve profiles/direct posts while stripping home.
-**Learning:** X can expose profile pages under generic labels like `Home timeline`, so never hide timeline-shaped DOM based on accessibility labels alone. Mark the route first, then apply feed-removal selectors only on feed routes like `/home`, `/explore`, and `/notifications`.
-
-### 2026-05-09 X should feel like YouTube focus chrome
-**Context:** The stripped X layout still felt awkward because it retained the side-rail structure.
-**Learning:** Prefer a consistent top-chrome shape across sites: logo top-left, search centered, account top-right. Do not depend on X mounting right-rail search; create an extension-owned search form that navigates to `/search?q=...`. Collapse X side rails visually and hide posting/composer surfaces when the product goal is search-only intentional use.
+### 2026-05-09 X support removed
+**Context:** We tried several X cleanup approaches, but the product direction moved away from supporting X for now.
+**Learning:** There is currently no X/Twitter content script or manifest match. If X returns later, start from fresh live Chrome DOM inspection rather than reviving the removed implementation.
 
 ### 2026-05-09 LinkedIn feed route and DOM quirks
 **Context:** LinkedIn feed cleanup missed real logged-in layouts.
