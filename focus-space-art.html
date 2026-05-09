@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Focus Space Art</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <style>
+    :root {
+      --topbar-height: 68px;
+      --ink: #0f0f0f;
+      --line: #d9d9d9;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #03060c;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .youtube-shell {
+      min-width: 960px;
+      height: 100vh;
+      background: #03060c;
+    }
+
+    .topbar {
+      position: relative;
+      z-index: 3;
+      height: var(--topbar-height);
+      padding: 0 29px 0 31px;
+      display: grid;
+      grid-template-columns: 232px 1fr 306px;
+      align-items: center;
+      gap: 20px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transform: translateY(-1px);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+
+    .yt-mark {
+      width: 32px;
+      height: 22px;
+      position: relative;
+      border-radius: 6px;
+      background: #ff1e1e;
+      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+    }
+
+    .yt-mark::after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      top: 5px;
+      width: 0;
+      height: 0;
+      border-left: 10px solid #fff;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+    }
+
+    .search-wrap {
+      justify-self: center;
+      width: min(100%, 628px);
+      height: 43px;
+      display: grid;
+      grid-template-columns: 1fr 66px;
+      border: 1px solid var(--line);
+      border-radius: 23px;
+      overflow: hidden;
+      color: #747474;
+      font-size: 16px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .search-wrap span {
+      display: flex;
+      align-items: center;
+      padding-left: 17px;
+    }
+
+    .search-button {
+      position: relative;
+      border: 0;
+      border-left: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .search-button::before {
+      content: "";
+      position: absolute;
+      width: 17px;
+      height: 17px;
+      left: 22px;
+      top: 11px;
+      border: 2px solid #060606;
+      border-radius: 50%;
+    }
+
+    .search-button::after {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 2px;
+      left: 37px;
+      top: 29px;
+      background: #060606;
+      transform: rotate(45deg);
+      transform-origin: left center;
+      border-radius: 2px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .create {
+      height: 38px;
+      padding: 0 17px 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 0;
+      border-radius: 20px;
+      background: #f4f4f4;
+      color: #111;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .plus {
+      position: relative;
+      display: block;
+      width: 18px;
+      height: 18px;
+    }
+
+    .plus::before,
+    .plus::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 1px;
+      width: 1.5px;
+      height: 17px;
+      background: #161616;
+      border-radius: 1px;
+    }
+
+    .plus::after {
+      transform: rotate(90deg);
+    }
+
+    .bell {
+      position: relative;
+      width: 22px;
+      height: 25px;
+    }
+
+    .bell::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 3px;
+      width: 14px;
+      height: 17px;
+      border: 2px solid #060606;
+      border-bottom: 0;
+      border-radius: 9px 9px 5px 5px;
+    }
+
+    .bell::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 18px;
+      width: 18px;
+      height: 2px;
+      background: #060606;
+      border-radius: 2px;
+      box-shadow: 7px 5px 0 -2px #060606;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 52% 31%, #f5cfaa 0 18%, transparent 19%),
+        radial-gradient(ellipse at 47% 19%, #493120 0 26%, transparent 27%),
+        radial-gradient(ellipse at 52% 79%, #182038 0 38%, transparent 39%),
+        linear-gradient(135deg, #b79673, #e8d5c1 48%, #6a4a3a);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+    }
+
+    #art {
+      position: relative;
+      height: calc(100vh - var(--topbar-height));
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="youtube-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="YouTube">
+        <span class="yt-mark"></span>
+        <span>YouTube</span>
+      </div>
+      <div class="search-wrap" aria-label="Search">
+        <span>Search</span>
+        <button class="search-button" aria-label="Search button"></button>
+      </div>
+      <div class="actions">
+        <button class="create" type="button"><span class="plus"></span><span>Create</span></button>
+        <span class="bell" aria-label="Notifications"></span>
+        <span class="avatar" aria-label="Profile"></span>
+      </div>
+    </header>
+    <main id="art"></main>
+  </div>
+
+  <script>
+    const REF_W = 1522;
+    const REF_H = 774;
+    const TOPBAR_H = 68;
+    let starLayer;
+    let gasLayer;
+    let holeLayer;
+
+    const constellations = [
+      [[0.101, 0.354], [0.139, 0.300], [0.160, 0.260], [0.179, 0.281], [0.216, 0.345], [0.236, 0.455]],
+      [[0.116, 0.841], [0.141, 0.889], [0.166, 0.789], [0.205, 0.878], [0.143, 0.929], [0.073, 0.886]],
+      [[0.377, 0.318], [0.410, 0.149], [0.495, 0.182], [0.441, 0.277], [0.384, 0.222], [0.355, 0.370], [0.388, 0.393]],
+      [[0.647, 0.047], [0.704, 0.096], [0.671, 0.189], [0.657, 0.269], [0.636, 0.124], [0.623, 0.258]],
+      [[0.417, 0.594], [0.438, 0.566], [0.452, 0.642], [0.418, 0.666], [0.400, 0.633], [0.400, 0.586]],
+      [[0.828, 0.884], [0.852, 0.798], [0.895, 0.796], [0.940, 0.831], [0.916, 0.699], [0.858, 0.712]],
+      [[0.908, 0.478], [0.940, 0.442], [0.959, 0.582], [0.940, 0.693], [0.913, 0.650]],
+      [[0.474, 0.744], [0.520, 0.893], [0.576, 0.921], [0.537, 0.962], [0.484, 0.899]],
+      [[0.287, 0.780], [0.250, 0.719], [0.220, 0.639], [0.174, 0.536], [0.224, 0.489]]
+    ];
+
+    const meteorSpecs = [
+      [0.290, 0.153, 0.226, 0.088, 2.5],
+      [0.310, 0.886, 0.228, 0.778, 3.0],
+      [0.719, 0.803, 0.780, 0.726, 2.8],
+      [0.282, 0.613, 0.237, 0.566, 1.7]
+    ];
+
+    function setup() {
+      const holder = document.getElementById("art");
+      const cnv = createCanvas(windowWidth, windowHeight - TOPBAR_H);
+      cnv.parent(holder);
+      pixelDensity(1);
+      noLoop();
+      rebuild();
+    }
+
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight - TOPBAR_H);
+      rebuild();
+    }
+
+    function rebuild() {
+      randomSeed(2705);
+      noiseSeed(2705);
+      starLayer = createGraphics(width, height);
+      gasLayer = createGraphics(width, height);
+      holeLayer = createGraphics(width, height);
+      [starLayer, gasLayer, holeLayer].forEach((g) => g.pixelDensity(1));
+      drawStars(starLayer);
+      drawGas(gasLayer);
+      drawBlackHole(holeLayer);
+      redraw();
+    }
+
+    function draw() {
+      drawSpaceBackground();
+      image(gasLayer, 0, 0);
+      image(starLayer, 0, 0);
+      drawConstellations();
+      drawMeteors();
+      image(holeLayer, 0, 0);
+      drawFocusDays();
+      drawVignette();
+    }
+
+    function sx(value) {
+      return value * width;
+    }
+
+    function sy(value) {
+      return value * height;
+    }
+
+    function drawSpaceBackground() {
+      background(2, 7, 15);
+      noFill();
+      for (let y = 0; y < height; y++) {
+        const t = y / height;
+        const upper = color(4, 10, 21);
+        const lower = color(1, 5, 11);
+        stroke(lerpColor(upper, lower, t));
+        line(0, y, width, y);
+      }
+
+      drawingContext.save();
+      drawingContext.globalCompositeOperation = "screen";
+      radialGlow(width * 0.23, height * 0.55, width * 0.55, [18, 62, 88], 0.26);
+      radialGlow(width * 0.74, height * 0.39, width * 0.43, [72, 84, 120], 0.18);
+      radialGlow(width * 0.56, height * 0.43, width * 0.34, [25, 45, 60], 0.28);
+      drawingContext.restore();
+    }
+
+    function radialGlow(x, y, radius, rgb, alpha) {
+      const gradient = drawingContext.createRadialGradient(x, y, 0, x, y, radius);
+      gradient.addColorStop(0, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`);
+      gradient.addColorStop(0.45, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha * 0.18})`);
+      gradient.addColorStop(1, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0)`);
+      drawingContext.fillStyle = gradient;
+      drawingContext.fillRect(0, 0, width, height);
+    }
+
+    function drawStars(g) {
+      g.clear();
+      g.noStroke();
+      for (let i = 0; i < 3300; i++) {
+        const clustered = random() < 0.36;
+        const x = clustered ? randomGaussian(width * 0.76, width * 0.17) : random(width);
+        const y = clustered ? randomGaussian(height * 0.37, height * 0.18) : random(height);
+        if (x < 0 || x > width || y < 0 || y > height) continue;
+        const r = pow(random(), 3.1) * 1.9 + 0.28;
+        const a = random(45, 225);
+        const cool = random() < 0.56;
+        g.fill(cool ? random(155, 210) : 255, cool ? random(190, 230) : random(225, 250), 255, a);
+        g.circle(x, y, r);
+        if (r > 1.55 && random() < 0.35) {
+          g.stroke(160, 205, 255, a * 0.45);
+          g.strokeWeight(0.7);
+          g.line(x - r * 3, y, x + r * 3, y);
+          g.line(x, y - r * 3, x, y + r * 3);
+          g.noStroke();
+        }
+      }
+
+      for (let i = 0; i < 46; i++) {
+        const x = random(width);
+        const y = random(height);
+        const r = random(1.9, 3.8);
+        const c = random() < 0.7 ? [185, 222, 255] : [255, 206, 178];
+        g.drawingContext.save();
+        g.drawingContext.shadowBlur = random(7, 17);
+        g.drawingContext.shadowColor = `rgba(${c[0]}, ${c[1]}, ${c[2]}, .9)`;
+        g.fill(c[0], c[1], c[2], random(160, 230));
+        g.circle(x, y, r);
+        g.drawingContext.restore();
+      }
+    }
+
+    function drawGas(g) {
+      g.clear();
+      g.drawingContext.save();
+      g.drawingContext.globalCompositeOperation = "screen";
+
+      drawMilkyBand(g);
+      drawLeftNebula(g);
+      drawDustWisps(g);
+
+      g.drawingContext.restore();
+      g.filter(BLUR, 0.35);
+    }
+
+    function drawMilkyBand(g) {
+      const count = 4700;
+      for (let i = 0; i < count; i++) {
+        const t = random(-0.08, 1.08);
+        const cx = lerp(width * 0.46, width * 0.98, t);
+        const cy = lerp(height * 0.58, height * 0.16, t) + sin(t * 9.0) * height * 0.045;
+        const spread = lerp(height * 0.020, height * 0.075, 1 - abs(t - 0.54));
+        const x = randomGaussian(cx, width * 0.022);
+        const y = randomGaussian(cy, spread);
+        const warm = random() < 0.34 || (t > 0.45 && t < 0.72 && random() < 0.56);
+        const a = random(7, 48) * (1 - abs(t - 0.55) * 0.55);
+        g.noStroke();
+        g.fill(warm ? random(200, 255) : random(85, 155), warm ? random(135, 205) : random(140, 205), warm ? random(95, 160) : 255, a);
+        g.circle(x, y, random(0.8, 3.2));
+      }
+
+      for (let i = 0; i < 26; i++) {
+        const t = i / 25;
+        const x = lerp(width * 0.50, width * 0.96, t);
+        const y = lerp(height * 0.56, height * 0.18, t) + sin(t * 8) * 34;
+        g.noStroke();
+        g.fill(130, 185, 230, 13);
+        g.ellipse(x, y, width * 0.15 * (1 - t * 0.25), height * 0.030);
+        g.fill(255, 185, 132, 8);
+        g.ellipse(x - 10, y + 3, width * 0.11, height * 0.020);
+      }
+    }
+
+    function drawLeftNebula(g) {
+      for (let i = 0; i < 3600; i++) {
+        const t = random();
+        const cx = lerp(width * 0.02, width * 0.35, t);
+        const cy = height * (0.49 + 0.22 * t) + sin(t * 8) * height * 0.11;
+        const x = randomGaussian(cx, width * 0.027);
+        const y = randomGaussian(cy, height * 0.035);
+        const a = random(5, 31) * (1 - abs(t - 0.48) * 0.55);
+        g.noStroke();
+        g.fill(60, random(112, 170), random(170, 230), a);
+        g.circle(x, y, random(0.7, 3.8));
+      }
+
+      for (let i = 0; i < 21; i++) {
+        const t = i / 20;
+        g.fill(45, 110, 162, 15);
+        g.ellipse(width * (0.06 + 0.29 * t), height * (0.50 + 0.20 * t + sin(t * 7) * 0.08), width * 0.12, height * 0.044);
+      }
+    }
+
+    function drawDustWisps(g) {
+      g.strokeCap(ROUND);
+      for (let i = 0; i < 250; i++) {
+        const aroundHole = random() < 0.72;
+        const cx = aroundHole ? width * 0.585 : random(width);
+        const cy = aroundHole ? height * 0.470 : random(height);
+        const r = aroundHole ? random(width * 0.040, width * 0.205) : random(width * 0.02, width * 0.11);
+        const a = random(TWO_PI);
+        const x = cx + cos(a) * r * random(0.6, 1.6);
+        const y = cy + sin(a) * r * random(0.18, 0.64);
+        const len = random(12, 58);
+        const alpha = aroundHole ? random(10, 42) : random(5, 18);
+        g.stroke(random(95, 180), random(130, 190), random(170, 240), alpha);
+        g.strokeWeight(random(0.35, 1.0));
+        g.line(x, y, x + cos(a + HALF_PI) * len, y + sin(a + HALF_PI) * len * 0.28);
+      }
+    }
+
+    function drawConstellations() {
+      drawingContext.save();
+      drawingContext.globalCompositeOperation = "screen";
+      for (const group of constellations) {
+        stroke(150, 198, 252, 48);
+        strokeWeight(1);
+        noFill();
+        for (let i = 0; i < group.length - 1; i++) {
+          line(sx(group[i][0]), sy(group[i][1]), sx(group[i + 1][0]), sy(group[i + 1][1]));
+        }
+        for (const p of group) {
+          const x = sx(p[0]);
+          const y = sy(p[1]);
+          noStroke();
+          fill(88, 151, 235, 25);
+          circle(x, y, 8.5);
+          fill(230, 246, 255, 210);
+          circle(x, y, 2.8);
+        }
+      }
+      drawingContext.restore();
+    }
+
+    function drawMeteors() {
+      drawingContext.save();
+      drawingContext.globalCompositeOperation = "screen";
+      for (const m of meteorSpecs) {
+        const x1 = sx(m[0]);
+        const y1 = sy(m[1]);
+        const x2 = sx(m[2]);
+        const y2 = sy(m[3]);
+        for (let i = 0; i < 10; i++) {
+          const t = i / 9;
+          stroke(100, 168, 255, 38 * (1 - t));
+          strokeWeight(m[4] + (1 - t) * 5.5);
+          line(x1, y1, lerp(x1, x2, t), lerp(y1, y2, t));
+        }
+        stroke(255, 241, 221, 218);
+        strokeWeight(m[4] * 0.58);
+        line(x1, y1, x2, y2);
+        noStroke();
+        fill(255, 245, 229, 210);
+        circle(x1, y1, m[4] * 1.4);
+      }
+      drawingContext.restore();
+    }
+
+    function drawBlackHole(g) {
+      g.clear();
+      const cx = width * 0.586;
+      const cy = height * 0.468;
+      const unit = min(width, height);
+      const core = unit * 0.072;
+
+      g.drawingContext.save();
+      g.drawingContext.translate(cx, cy);
+      g.drawingContext.globalCompositeOperation = "screen";
+
+      for (let i = 0; i < 9800; i++) {
+        const t = i / 9800;
+        const a = t * 67.0 + random(-0.14, 0.14);
+        const radius = core * random(1.05, 3.55) * (1 + noise(t * 8) * 0.20);
+        const lens = 1.16 + 0.38 * sin(a * 2.0 + radius * 0.015);
+        const x = cos(a) * radius * lens;
+        const y = sin(a) * radius * random(0.18, 0.46) + sin(a * 3) * core * 0.075;
+        const sideBoost = x > 0 ? 1.25 : 0.82;
+        const hot = random() < 0.42 || (x > 0 && abs(y) < core * 0.35);
+        const alpha = random(8, 72) * sideBoost * (1 - min(0.82, t * 0.42));
+        g.noStroke();
+        g.fill(hot ? random(220, 255) : random(92, 155), hot ? random(160, 219) : random(130, 190), hot ? random(115, 168) : 255, alpha);
+        g.circle(x, y, random(0.55, 1.65));
+      }
+
+      for (let i = 0; i < 120; i++) {
+        const r = core * lerp(1.05, 3.0, i / 90);
+        const a = map(i, 0, 120, 96, 0);
+        g.noFill();
+        g.stroke(88, 145, 205, a * 0.38);
+        g.strokeWeight(0.7);
+        g.ellipse(0, 0, r * 2.75, r * 0.80);
+      }
+
+      g.drawingContext.shadowBlur = core * 0.48;
+      g.drawingContext.shadowColor = "rgba(255, 199, 152, .75)";
+      g.noFill();
+      g.stroke(255, 211, 174, 188);
+      g.strokeWeight(1.8);
+      g.ellipse(0, 0, core * 2.62, core * 2.32);
+
+      g.stroke(255, 235, 206, 210);
+      g.strokeWeight(1.3);
+      g.arc(0, 0, core * 2.65, core * 2.30, PI * 0.66, PI * 1.97);
+
+      g.drawingContext.shadowBlur = 0;
+      g.drawingContext.globalCompositeOperation = "source-over";
+
+      const coreGradient = g.drawingContext.createRadialGradient(0, 0, 0, 0, 0, core * 1.27);
+      coreGradient.addColorStop(0, "rgba(0, 3, 8, 1)");
+      coreGradient.addColorStop(0.73, "rgba(0, 4, 10, 1)");
+      coreGradient.addColorStop(1, "rgba(0, 4, 11, .94)");
+      g.drawingContext.fillStyle = coreGradient;
+      g.drawingContext.beginPath();
+      g.drawingContext.arc(0, 0, core * 1.17, 0, Math.PI * 2);
+      g.drawingContext.fill();
+
+      g.drawingContext.save();
+      g.drawingContext.globalCompositeOperation = "multiply";
+      const shadow = g.drawingContext.createRadialGradient(0, 0, core * 0.62, 0, 0, core * 1.55);
+      shadow.addColorStop(0, "rgba(0, 0, 0, 1)");
+      shadow.addColorStop(0.76, "rgba(0, 0, 0, .96)");
+      shadow.addColorStop(1, "rgba(0, 0, 0, 0)");
+      g.drawingContext.fillStyle = shadow;
+      g.drawingContext.beginPath();
+      g.drawingContext.arc(0, 0, core * 1.58, 0, Math.PI * 2);
+      g.drawingContext.fill();
+      g.drawingContext.restore();
+
+      g.drawingContext.globalCompositeOperation = "screen";
+      g.drawingContext.shadowBlur = core * 0.20;
+      g.drawingContext.shadowColor = "rgba(255, 204, 158, .85)";
+      g.noFill();
+      g.stroke(255, 220, 183, 170);
+      g.strokeWeight(1.6);
+      g.arc(0, -core * 0.02, core * 2.48, core * 2.16, PI * 0.55, PI * 2.02);
+      g.stroke(255, 180, 126, 122);
+      g.strokeWeight(2.0);
+      g.arc(0, core * 0.03, core * 2.72, core * 0.70, PI * 0.02, PI * 0.96);
+      g.arc(0, core * 0.10, core * 2.72, core * 0.74, PI * 1.04, PI * 1.88);
+      g.drawingContext.shadowBlur = 0;
+
+      for (let i = 0; i < 850; i++) {
+        const t = i / 850;
+        const x = lerp(core * 0.52, core * 2.82, t) + randomGaussian(0, core * 0.08);
+        const y = sin(t * PI * 1.08) * core * 0.37 + randomGaussian(0, core * 0.050);
+        const alpha = 78 * (1 - t);
+        g.noStroke();
+        g.fill(255, random(170, 220), random(120, 170), alpha);
+        g.circle(x, y, random(0.4, 1.45));
+      }
+
+      g.noFill();
+      for (let i = 0; i < 18; i++) {
+        const r = core * (1.18 + i * 0.040);
+        g.stroke(255, 196, 151, 25 - i);
+        g.strokeWeight(1);
+        g.ellipse(0, 0, r * 2.05, r * 1.93);
+      }
+
+      g.drawingContext.restore();
+      g.filter(BLUR, 0.12);
+    }
+
+    function drawFocusDays() {
+      noStroke();
+      fill(138, 147, 183, 178);
+      textAlign(CENTER, CENTER);
+      textSize(max(15, width * 0.011));
+      textStyle(NORMAL);
+      text("27 focus days", width * 0.501, height - 45);
+    }
+
+    function drawVignette() {
+      drawingContext.save();
+      const gradient = drawingContext.createRadialGradient(width * 0.55, height * 0.43, width * 0.08, width * 0.55, height * 0.46, width * 0.78);
+      gradient.addColorStop(0, "rgba(0,0,0,0)");
+      gradient.addColorStop(0.58, "rgba(0,0,0,0.04)");
+      gradient.addColorStop(1, "rgba(0,0,0,0.54)");
+      drawingContext.fillStyle = gradient;
+      drawingContext.fillRect(0, 0, width, height);
+      drawingContext.restore();
+    }
+  </script>
+</body>
+</html>
