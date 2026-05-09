@@ -68,3 +68,7 @@
 ### 2026-05-09 LinkedIn feed should be top chrome only
 **Context:** The user marked the exact LinkedIn surfaces to keep.
 **Learning:** On LinkedIn feed, keep only the top chrome for search, My Network, Jobs, Messaging, Me, and For Business. Hide the feed body entirely, including composer, sidebars, news, puzzles, floating messaging drawer, Home, Notifications, and Sales Nav.
+
+### 2026-05-09 LinkedIn root is the feed
+**Context:** LinkedIn's bare `/` route should behave like `/feed/`.
+**Learning:** Treat `https://www.linkedin.com/` as a feed route immediately, without waiting for feed DOM signatures. The root route is not an intentional destination in this product.

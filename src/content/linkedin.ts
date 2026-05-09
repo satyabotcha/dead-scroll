@@ -39,16 +39,6 @@ const FEED_PAGE_SELECTORS = [
   ".msg-overlay-list-bubble"
 ] as const;
 
-const FEED_SURFACE_SELECTORS = [
-  ".share-box-feed-entry",
-  ".feed-shared-update-v2",
-  ".fie-impression-container",
-  "[data-finite-scroll-hotkey-item]",
-  "[data-urn*='urn:li:activity']",
-  "[data-id*='urn:li:activity']",
-  ".update-components-actor"
-] as const;
-
 const NOTIFICATIONS_PAGE_SELECTORS = [
   "main",
   ".scaffold-layout__main",
@@ -123,12 +113,8 @@ function pathStartsWith(prefixes: readonly string[]): boolean {
   return prefixes.some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`));
 }
 
-function hasFeedSurface(): boolean {
-  return FEED_SURFACE_SELECTORS.some((selector) => document.querySelector(selector));
-}
-
 function updatePageMarker(): void {
-  if (pathStartsWith(FEED_PATH_PREFIXES) || (location.pathname === "/" && hasFeedSurface())) {
+  if (location.pathname === "/" || pathStartsWith(FEED_PATH_PREFIXES)) {
     document.documentElement.dataset.feedRemoverLinkedinPage = "feed";
     return;
   }
