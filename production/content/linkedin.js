@@ -4,28 +4,44 @@
     const LINKEDIN_DEFAULT_FOCUS_MODE = true;
     const STYLE_ID = "social-media-feed-remover-linkedin";
     const HIDDEN_ATTRIBUTE = "data-feed-remover-linkedin-hidden";
+    const COMPOSER_SELECTOR = ".share-box-feed-entry";
     const FEED_PATH_PREFIXES = ["/feed"];
     const NOTIFICATIONS_PATH_PREFIXES = ["/notifications"];
     const GLOBAL_DISTRACTION_SELECTORS = [
         ".global-nav__primary-item:has(a[href*='/feed/'])",
+        ".global-nav__primary-item:has(a[href*='/mynetwork'])",
         ".global-nav__primary-item:has(a[href*='/notifications/'])",
         ".global-nav__primary-item:has([data-test-global-nav-link='feed'])",
+        ".global-nav__primary-item:has([data-test-global-nav-link='mynetwork'])",
         ".global-nav__primary-item:has([data-test-global-nav-link='notifications'])",
         ".global-nav__primary-item:has([aria-label*='Home'])",
+        ".global-nav__primary-item:has([aria-label*='My Network'])",
         ".global-nav__primary-item:has([aria-label*='Notifications'])",
+        ".global-nav__primary-item:has(button[aria-label*='Home'])",
+        ".global-nav__primary-item:has(button[aria-label*='My Network'])",
+        ".global-nav__primary-item:has(button[aria-label*='Notifications'])",
         "li:has(> a[href*='/feed/'])",
+        "li:has(> a[href*='/mynetwork'])",
         "li:has(> a[href*='/notifications/'])",
         "[data-test-global-nav-link='feed']",
+        "[data-test-global-nav-link='mynetwork']",
         "[data-test-global-nav-link='notifications']",
         "a[href*='/feed/'][aria-label*='Home']",
-        "a[href*='/notifications/'][aria-label*='Notifications']"
+        "a[href*='/mynetwork'][aria-label*='My Network']",
+        "a[href*='/notifications/'][aria-label*='Notifications']",
+        "button[aria-label*='Home']",
+        "button[aria-label*='My Network']",
+        "button[aria-label*='Notifications']",
+        "button[aria-label*='For Business']",
+        "a[href*='/premium/redeem/']"
     ];
     const FEED_PAGE_SELECTORS = [
-        ".feed-shared-update-v2",
-        ".fie-impression-container",
-        "[data-finite-scroll-hotkey-item]",
-        "[data-urn*='urn:li:activity']",
-        "[data-id*='urn:li:activity']",
+        ".scaffold-finite-scroll:not(:has(.share-box-feed-entry))",
+        ".feed-shared-update-v2:not(:has(.share-box-feed-entry))",
+        ".fie-impression-container:not(:has(.share-box-feed-entry))",
+        "[data-finite-scroll-hotkey-item]:not(:has(.share-box-feed-entry))",
+        "[data-urn*='urn:li:activity']:not(:has(.share-box-feed-entry))",
+        "[data-id*='urn:li:activity']:not(:has(.share-box-feed-entry))",
         ".update-components-actor",
         ".scaffold-layout__sidebar",
         ".scaffold-layout__aside",
@@ -52,6 +68,7 @@
         "people you may know",
         "promoted",
         "recommended for you",
+        "today's puzzles",
         "who viewed your profile",
         "profile viewers",
         "today's news"
@@ -61,8 +78,11 @@
         "section",
         "aside",
         "article",
+        "menu",
         ".artdeco-card",
         ".feed-shared-update-v2",
+        ".fie-impression-container",
+        ".scaffold-finite-scroll",
         ".scaffold-layout__aside",
         ".scaffold-layout__sidebar",
         ".mn-pymk-list",
@@ -109,7 +129,7 @@
     function setFocusMode(focusMode) {
         document.documentElement.dataset.feedRemoverLinkedinFocusMode = String(focusMode);
         updatePageMarker();
-        applyTextBasedCleanup(focusMode);
+        applyLinkedInCleanup(focusMode);
     }
     function showPreviouslyHiddenElements() {
         document.querySelectorAll(`[${HIDDEN_ATTRIBUTE}="true"]`).forEach((element) => {
@@ -142,6 +162,44 @@
             hideElement(container);
         }
     }
+    function hideFeedLayoutAroundComposer() {
+        if (!isFeedPage()) {
+            return;
+        }
+        const composer = document.querySelector(COMPOSER_SELECTOR);
+        if (!(composer instanceof HTMLElement)) {
+            return;
+        }
+        let keptBranch = composer;
+        let parent = composer.parentElement;
+        while (parent && parent !== document.body) {
+            if (parent.matches("header, nav, .global-nav")) {
+                break;
+            }
+            if (parent.closest("main, .scaffold-layout, .scaffold-layout__main")) {
+                Array.from(parent.children).forEach((sibling) => {
+                    if (sibling !== keptBranch && sibling instanceof HTMLElement) {
+                        hideElement(sibling);
+                    }
+                });
+            }
+            if (parent.matches("main, .scaffold-layout")) {
+                break;
+            }
+            keptBranch = parent;
+            parent = parent.parentElement;
+        }
+    }
+    function hideFeedRails() {
+        if (!isFeedPage()) {
+            return;
+        }
+        document.querySelectorAll(".scaffold-layout__sidebar, .scaffold-layout__aside, aside").forEach((element) => {
+            if (element instanceof HTMLElement) {
+                hideElement(element);
+            }
+        });
+    }
     function applyTextBasedCleanup(focusMode) {
         if (!focusMode) {
             showPreviouslyHiddenElements();
@@ -153,6 +211,15 @@
                 hideDistractingModule(element);
             }
         });
+    }
+    function applyLinkedInCleanup(focusMode) {
+        if (!focusMode) {
+            showPreviouslyHiddenElements();
+            return;
+        }
+        applyTextBasedCleanup(focusMode);
+        hideFeedLayoutAroundComposer();
+        hideFeedRails();
     }
     function loadSettings() {
         chrome.storage.sync.get(LINKEDIN_SETTINGS_KEY, (result) => {
@@ -172,7 +239,7 @@
     const observer = new MutationObserver(() => {
         const focusMode = document.documentElement.dataset.feedRemoverLinkedinFocusMode === "true";
         updatePageMarker();
-        applyTextBasedCleanup(focusMode);
+        applyLinkedInCleanup(focusMode);
     });
     observer.observe(document.documentElement, {
         childList: true,
