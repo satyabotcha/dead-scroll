@@ -2,6 +2,7 @@
 const X_SETTINGS_KEY = "focusMode";
 const X_DEFAULT_FOCUS_MODE = true;
 const STYLE_ID = "social-media-feed-remover-x";
+const FOCUS_CHROME_ID = "social-media-feed-remover-x-focus-chrome";
 const HIDDEN_ATTRIBUTE = "data-feed-remover-x-hidden";
 
 const DISTRACTING_PRIMARY_NAV_SELECTORS = [
@@ -54,6 +55,7 @@ const GLOBAL_DISTRACTION_SELECTORS = [
 ] as const;
 
 const HOME_PAGE_SELECTORS = [
+  "main",
   "main [role='tablist']",
   "main [role='status']",
   "main [data-testid='cellInnerDiv']:has([data-testid='tweetTextarea_0'])",
@@ -184,6 +186,39 @@ function installFeedBlocker(): void {
       overflow-x: hidden !important;
     }
 
+    html[data-feed-remover-x-focus-mode="true"] #${FOCUS_CHROME_ID} {
+      display: flex !important;
+      position: fixed !important;
+      top: 12px !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      z-index: 2147483647 !important;
+      width: min(560px, 46vw) !important;
+      pointer-events: auto !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] #${FOCUS_CHROME_ID} form {
+      width: 100% !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] #${FOCUS_CHROME_ID} input {
+      box-sizing: border-box !important;
+      width: 100% !important;
+      height: 44px !important;
+      border: 1px solid rgb(207, 217, 222) !important;
+      border-radius: 9999px !important;
+      background: rgb(255, 255, 255) !important;
+      color: rgb(15, 20, 25) !important;
+      font: 400 17px/24px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+      padding: 0 20px !important;
+      outline: none !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] #${FOCUS_CHROME_ID} input:focus {
+      border-color: rgb(29, 155, 240) !important;
+      box-shadow: 0 0 0 1px rgb(29, 155, 240) !important;
+    }
+
     html[data-feed-remover-x-focus-mode="true"] header[role="banner"] {
       width: 0 !important;
       min-width: 0 !important;
@@ -218,13 +253,7 @@ function installFeedBlocker(): void {
     }
 
     html[data-feed-remover-x-focus-mode="true"] [data-testid="sidebarColumn"] [role="search"] {
-      display: block !important;
-      position: fixed !important;
-      top: 12px !important;
-      left: 50% !important;
-      transform: translateX(-50%) !important;
-      width: min(560px, 46vw) !important;
-      z-index: 2147483646 !important;
+      display: none !important;
     }
 
     html[data-feed-remover-x-focus-mode="true"] main[role="main"] {
@@ -336,7 +365,65 @@ function updatePageMarker(): void {
 function setFocusMode(focusMode: boolean): void {
   document.documentElement.dataset.feedRemoverXFocusMode = String(focusMode);
   updatePageMarker();
+  syncFocusChrome(focusMode);
   applyTextBasedCleanup(focusMode);
+}
+
+function currentSearchQuery(): string {
+  if (normalizedPath() !== "/search") {
+    return "";
+  }
+
+  return new URLSearchParams(location.search).get("q") ?? "";
+}
+
+function removeFocusChrome(): void {
+  document.getElementById(FOCUS_CHROME_ID)?.remove();
+}
+
+function syncFocusChrome(focusMode: boolean): void {
+  if (!focusMode) {
+    removeFocusChrome();
+    return;
+  }
+
+  let chromeRoot = document.getElementById(FOCUS_CHROME_ID);
+
+  if (chromeRoot) {
+    const input = chromeRoot.querySelector<HTMLInputElement>("input");
+
+    if (input && document.activeElement !== input) {
+      input.value = currentSearchQuery();
+    }
+
+    return;
+  }
+
+  chromeRoot = document.createElement("div");
+  chromeRoot.id = FOCUS_CHROME_ID;
+
+  const form = document.createElement("form");
+  const input = document.createElement("input");
+
+  input.type = "search";
+  input.placeholder = "Search";
+  input.autocomplete = "off";
+  input.value = currentSearchQuery();
+  input.setAttribute("aria-label", "Search X");
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const query = input.value.trim();
+
+    if (query) {
+      location.assign(`/search?q=${encodeURIComponent(query)}&src=typed_query`);
+    }
+  });
+
+  form.append(input);
+  chromeRoot.append(form);
+  (document.body ?? document.documentElement).append(chromeRoot);
 }
 
 function showPreviouslyHiddenElements(): void {
@@ -429,6 +516,7 @@ const observer = new MutationObserver(() => {
   const focusMode = document.documentElement.dataset.feedRemoverXFocusMode === "true";
 
   updatePageMarker();
+  syncFocusChrome(focusMode);
   applyTextBasedCleanup(focusMode);
 });
 
