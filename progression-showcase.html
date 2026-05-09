@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zodiac Progression Prototype</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --ink: rgba(245, 248, 255, 0.92);
+    --muted: rgba(220, 230, 255, 0.48);
+    --panel: rgba(3, 8, 18, 0.68);
+    --line: rgba(180, 210, 255, 0.16);
+    --gold: #ffd98a;
+    --blue: #8cbcff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #01040b;
+    font-family: ui-serif, Georgia, "Times New Roman", serif;
+  }
+
+  canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  #hud {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  #title {
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    max-width: 360px;
+    color: var(--ink);
+    text-shadow: 0 0 28px rgba(110, 160, 255, 0.22);
+  }
+
+  #title .eyebrow {
+    display: block;
+    margin-bottom: 8px;
+    color: rgba(255, 217, 138, 0.74);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  #sign-name {
+    margin: 0;
+    font-size: clamp(34px, 6vw, 76px);
+    line-height: 0.9;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  #sign-note {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  #controls {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    width: min(440px, calc(100vw - 48px));
+    pointer-events: auto;
+  }
+
+  #signs {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid rgba(180, 210, 255, 0.1);
+    border-radius: 8px;
+    background: var(--panel);
+    backdrop-filter: blur(18px);
+  }
+
+  #signs button {
+    min-width: 0;
+    height: 34px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: rgba(229, 237, 255, 0.42);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 180ms ease, color 180ms ease;
+  }
+
+  #signs button:hover,
+  #signs button.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  #scrubber {
+    display: grid;
+    grid-template-columns: auto 1fr 42px;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 12px 14px;
+    border: 1px solid rgba(180, 210, 255, 0.1);
+    border-radius: 8px;
+    background: var(--panel);
+    backdrop-filter: blur(18px);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  #scrubber label {
+    color: rgba(255, 217, 138, 0.62);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  #day-slider {
+    width: 100%;
+    accent-color: var(--gold);
+  }
+
+  #day-count {
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  @media (max-width: 760px) {
+    #title {
+      top: 16px;
+      left: 14px;
+      max-width: none;
+      right: 14px;
+    }
+
+    #controls {
+      top: auto;
+      right: 14px;
+      bottom: 14px;
+      left: 14px;
+      width: auto;
+    }
+
+    #signs {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<section id="hud" aria-label="Zodiac progression prototype">
+  <div id="title">
+    <span class="eyebrow">Month 1 starts here</span>
+    <h1 id="sign-name">Leo</h1>
+    <p id="sign-note">Curved star strokes reveal the lion over thirty intentional days.</p>
+  </div>
+  <div id="controls">
+    <div id="signs" aria-label="Signs"></div>
+    <div id="scrubber">
+      <label for="day-slider">Day</label>
+      <input id="day-slider" type="range" min="0" max="30" value="4">
+      <span id="day-count">4</span>
+    </div>
+  </div>
+</section>
+
+<script>
+"use strict";
+
+const canvas = document.getElementById("sky");
+const ctx = canvas.getContext("2d");
+const signButtons = document.getElementById("signs");
+const signName = document.getElementById("sign-name");
+const signNote = document.getElementById("sign-note");
+const daySlider = document.getElementById("day-slider");
+const dayCount = document.getElementById("day-count");
+
+let width = 0;
+let height = 0;
+let ratio = 1;
+let activeSign = 0;
+let day = Number(daySlider.value);
+let startedAt = performance.now();
+
+const signs = [
+  {
+    name: "Leo",
+    note: "A lion hinted through mane, chest, spine, and lifted tail.",
+    hue: [255, 214, 137],
+    anchor: [[.34,.40],[.39,.28],[.50,.24],[.60,.32],[.63,.43],[.54,.50],[.43,.51],[.48,.61],[.44,.77],[.64,.64],[.66,.78],[.77,.50],[.84,.36],[.79,.24]],
+    strokes: [
+      [[.39,.28],[.31,.31],[.29,.43],[.34,.52], 0, 7, 2.6],
+      [[.39,.28],[.47,.18],[.58,.22],[.60,.32], 3, 11, 2.3],
+      [[.60,.32],[.70,.36],[.67,.47],[.54,.50], 7, 15, 1.7],
+      [[.54,.50],[.46,.55],[.38,.54],[.34,.52], 10, 17, 1.7],
+      [[.45,.36],[.50,.38],[.56,.40],[.63,.43], 11, 18, 0.9],
+      [[.48,.61],[.58,.70],[.72,.64],[.77,.50], 14, 22, 2.0],
+      [[.58,.32],[.69,.26],[.82,.33],[.77,.50], 17, 25, 1.6],
+      [[.48,.61],[.47,.69],[.43,.73],[.44,.77], 18, 27, 1.2],
+      [[.64,.64],[.68,.72],[.64,.77],[.66,.78], 21, 30, 1.2],
+      [[.77,.50],[.88,.45],[.90,.31],[.79,.24], 22, 30, 1.5],
+      [[.79,.24],[.86,.22],[.89,.27],[.84,.36], 25, 30, 0.95]
+    ]
+  },
+  {
+    name: "Virgo",
+    note: "A quiet maiden silhouette: bowed head, robe, and grain in hand.",
+    hue: [178, 222, 206],
+    anchor: [[.43,.24],[.51,.28],[.55,.40],[.49,.55],[.39,.67],[.55,.67],[.65,.56],[.69,.42],[.76,.34]],
+    strokes: [
+      [[.43,.24],[.49,.18],[.56,.23],[.51,.28], 0, 7, 1.8],
+      [[.51,.28],[.60,.36],[.56,.48],[.49,.55], 5, 14, 2.0],
+      [[.49,.55],[.41,.60],[.37,.65],[.39,.67], 11, 19, 1.5],
+      [[.49,.55],[.55,.64],[.61,.67],[.55,.67], 14, 24, 1.6],
+      [[.55,.40],[.66,.38],[.72,.36],[.76,.34], 17, 30, 1.2],
+      [[.76,.34],[.70,.45],[.70,.52],[.65,.56], 22, 30, 1.0]
+    ]
+  },
+  {
+    name: "Libra",
+    note: "Scales, but softened into a celestial balance arc.",
+    hue: [201, 196, 255],
+    anchor: [[.34,.58],[.45,.58],[.56,.58],[.68,.58],[.50,.30],[.42,.42],[.58,.42],[.28,.45],[.72,.45]],
+    strokes: [
+      [[.34,.58],[.44,.58],[.57,.58],[.68,.58], 0, 9, 1.7],
+      [[.42,.42],[.44,.30],[.56,.30],[.58,.42], 6, 17, 1.8],
+      [[.42,.42],[.48,.48],[.52,.48],[.58,.42], 12, 22, 1.2],
+      [[.28,.45],[.34,.38],[.40,.38],[.42,.42], 15, 25, 1.0],
+      [[.58,.42],[.62,.38],[.69,.38],[.72,.45], 20, 30, 1.0]
+    ]
+  },
+  {
+    name: "Scorpio",
+    note: "A curled scorpion with a lifted sting, more gesture than diagram.",
+    hue: [255, 157, 157],
+    anchor: [[.31,.50],[.39,.43],[.49,.47],[.58,.56],[.68,.55],[.75,.46],[.71,.36],[.62,.32],[.81,.31]],
+    strokes: [
+      [[.31,.50],[.35,.40],[.44,.38],[.49,.47], 0, 9, 1.6],
+      [[.49,.47],[.54,.58],[.64,.63],[.68,.55], 7, 15, 2.1],
+      [[.68,.55],[.80,.51],[.80,.39],[.71,.36], 13, 22, 1.8],
+      [[.71,.36],[.68,.29],[.63,.28],[.62,.32], 19, 27, 1.0],
+      [[.62,.32],[.70,.26],[.79,.26],[.81,.31], 23, 30, 1.0],
+      [[.39,.43],[.38,.53],[.43,.58],[.48,.56], 12, 24, 0.9]
+    ]
+  },
+  {
+    name: "Sagittarius",
+    note: "A centaur archer reduced to torso, bow, and arrow flight.",
+    hue: [255, 194, 116],
+    anchor: [[.31,.62],[.43,.55],[.51,.45],[.60,.36],[.75,.27],[.64,.53],[.70,.66],[.47,.67],[.36,.72]],
+    strokes: [
+      [[.31,.62],[.43,.62],[.50,.53],[.51,.45], 0, 10, 1.7],
+      [[.51,.45],[.54,.36],[.59,.34],[.60,.36], 6, 15, 1.4],
+      [[.60,.36],[.65,.30],[.70,.28],[.75,.27], 11, 20, 1.2],
+      [[.51,.45],[.62,.47],[.67,.50],[.64,.53], 14, 24, 1.3],
+      [[.64,.53],[.72,.58],[.74,.65],[.70,.66], 19, 30, 1.1],
+      [[.47,.67],[.42,.75],[.35,.76],[.36,.72], 22, 30, 1.0]
+    ]
+  },
+  {
+    name: "Capricorn",
+    note: "A mountain goat becoming a sea-tail curl.",
+    hue: [178, 226, 255],
+    anchor: [[.34,.35],[.43,.28],[.55,.33],[.60,.48],[.53,.63],[.64,.70],[.76,.63],[.73,.50],[.40,.55]],
+    strokes: [
+      [[.34,.35],[.38,.25],[.50,.24],[.55,.33], 0, 8, 1.8],
+      [[.55,.33],[.65,.40],[.66,.50],[.60,.48], 6, 14, 1.5],
+      [[.60,.48],[.56,.55],[.52,.58],[.53,.63], 12, 20, 1.8],
+      [[.53,.63],[.60,.75],[.76,.72],[.76,.63], 17, 27, 1.6],
+      [[.76,.63],[.83,.55],[.80,.47],[.73,.50], 22, 30, 1.1],
+      [[.40,.55],[.47,.50],[.55,.49],[.60,.48], 10, 20, 1.0]
+    ]
+  },
+  {
+    name: "Aquarius",
+    note: "The water bearer as two living streams, not a flat zig-zag.",
+    hue: [129, 226, 255],
+    anchor: [[.25,.43],[.38,.38],[.49,.44],[.61,.38],[.75,.43],[.24,.59],[.38,.54],[.50,.60],[.62,.54],[.76,.59]],
+    strokes: [
+      [[.25,.43],[.34,.32],[.43,.51],[.49,.44], 0, 9, 1.4],
+      [[.49,.44],[.56,.35],[.65,.34],[.75,.43], 7, 16, 1.4],
+      [[.24,.59],[.34,.48],[.44,.67],[.50,.60], 12, 22, 1.4],
+      [[.50,.60],[.56,.50],[.66,.50],[.76,.59], 19, 30, 1.4]
+    ]
+  },
+  {
+    name: "Pisces",
+    note: "Twin fish orbiting a thin gravitational thread.",
+    hue: [157, 207, 255],
+    anchor: [[.35,.39],[.27,.48],[.35,.57],[.47,.49],[.65,.39],[.77,.48],[.65,.57],[.53,.49],[.50,.49]],
+    strokes: [
+      [[.47,.49],[.40,.34],[.27,.35],[.27,.48], 0, 8, 1.3],
+      [[.27,.48],[.28,.62],[.41,.63],[.47,.49], 7, 15, 1.3],
+      [[.53,.49],[.60,.34],[.77,.35],[.77,.48], 13, 22, 1.3],
+      [[.77,.48],[.76,.62],[.60,.63],[.53,.49], 18, 28, 1.3],
+      [[.47,.49],[.49,.48],[.51,.48],[.53,.49], 20, 30, 0.8]
+    ]
+  },
+  {
+    name: "Aries",
+    note: "Ram horns drawn as two rising moonlike sweeps.",
+    hue: [255, 184, 144],
+    anchor: [[.50,.60],[.40,.47],[.31,.38],[.34,.27],[.45,.29],[.60,.47],[.69,.38],[.66,.27],[.55,.29]],
+    strokes: [
+      [[.50,.60],[.40,.54],[.34,.46],[.31,.38], 0, 8, 1.7],
+      [[.31,.38],[.25,.26],[.37,.20],[.45,.29], 7, 16, 1.5],
+      [[.50,.60],[.59,.54],[.66,.46],[.69,.38], 11, 20, 1.7],
+      [[.69,.38],[.75,.26],[.63,.20],[.55,.29], 18, 30, 1.5]
+    ]
+  },
+  {
+    name: "Taurus",
+    note: "Bull head and horns held in a calm, broad stance.",
+    hue: [246, 209, 145],
+    anchor: [[.50,.55],[.39,.46],[.31,.34],[.22,.33],[.43,.32],[.61,.46],[.69,.34],[.78,.33],[.57,.32],[.50,.68]],
+    strokes: [
+      [[.50,.55],[.42,.50],[.38,.45],[.39,.46], 0, 7, 1.6],
+      [[.39,.46],[.32,.43],[.25,.40],[.22,.33], 6, 15, 1.3],
+      [[.39,.46],[.37,.35],[.43,.31],[.43,.32], 9, 17, 1.1],
+      [[.50,.55],[.58,.50],[.62,.45],[.61,.46], 13, 21, 1.6],
+      [[.61,.46],[.68,.43],[.75,.40],[.78,.33], 18, 27, 1.3],
+      [[.61,.46],[.63,.35],[.57,.31],[.57,.32], 22, 30, 1.1],
+      [[.50,.55],[.45,.61],[.47,.68],[.50,.68], 24, 30, 1.0]
+    ]
+  },
+  {
+    name: "Gemini",
+    note: "Twins as mirrored figures crossing the same invisible wind.",
+    hue: [232, 219, 255],
+    anchor: [[.39,.27],[.38,.45],[.36,.64],[.49,.35],[.49,.61],[.61,.27],[.62,.45],[.64,.64]],
+    strokes: [
+      [[.39,.27],[.34,.35],[.34,.55],[.36,.64], 0, 10, 1.4],
+      [[.61,.27],[.66,.35],[.66,.55],[.64,.64], 6, 16, 1.4],
+      [[.39,.27],[.47,.23],[.54,.23],[.61,.27], 12, 20, 1.1],
+      [[.36,.64],[.45,.70],[.56,.70],[.64,.64], 18, 27, 1.1],
+      [[.49,.35],[.52,.43],[.52,.53],[.49,.61], 21, 30, 0.9]
+    ]
+  },
+  {
+    name: "Cancer",
+    note: "A crab-like orbit: two shells rotating around a shared center.",
+    hue: [255, 175, 202],
+    anchor: [[.37,.42],[.29,.48],[.37,.55],[.48,.49],[.63,.42],[.71,.48],[.63,.55],[.52,.49]],
+    strokes: [
+      [[.48,.49],[.42,.38],[.30,.36],[.29,.48], 0, 9, 1.4],
+      [[.29,.48],[.30,.60],[.42,.61],[.48,.49], 7, 17, 1.4],
+      [[.52,.49],[.58,.38],[.70,.36],[.71,.48], 13, 23, 1.4],
+      [[.71,.48],[.70,.60],[.58,.61],[.52,.49], 19, 30, 1.4]
+    ]
+  }
+];
+
+function seeded(seed) {
+  const s = Math.sin(seed * 127.1) * 43758.5453123;
+  return s - Math.floor(s);
+}
+
+const dust = Array.from({ length: 170 }, (_, i) => ({
+  x: seeded(i + 10),
+  y: seeded(i + 100),
+  r: 0.35 + seeded(i + 200) * 1.2,
+  a: 0.05 + seeded(i + 300) * 0.24,
+  p: seeded(i + 400) * Math.PI * 2
+}));
+
+function resize() {
+  ratio = Math.min(window.devicePixelRatio || 1, 1.75);
+  width = Math.floor(innerWidth * ratio);
+  height = Math.floor(innerHeight * ratio);
+  canvas.width = width;
+  canvas.height = height;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function ease(value) {
+  const x = clamp(value, 0, 1);
+  return x * x * (3 - 2 * x);
+}
+
+function scalePoint(point) {
+  const side = Math.min(width, height) * 0.86;
+  const x0 = width * 0.5 - side * 0.5;
+  const y0 = height * 0.52 - side * 0.5;
+  return [x0 + point[0] * side, y0 + point[1] * side];
+}
+
+function cubic(a, b, c, d, t) {
+  const mt = 1 - t;
+  return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d;
+}
+
+function drawCubic(stroke, reveal, color, alphaMul, widthMul) {
+  if (reveal <= 0) return;
+
+  const [p0, p1, p2, p3] = stroke;
+  const [r, g, b] = color;
+  const steps = Math.max(8, Math.floor(60 * reveal));
+
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i += 1) {
+    const t = reveal * (i / steps);
+    const x = cubic(p0[0], p1[0], p2[0], p3[0], t);
+    const y = cubic(p0[1], p1[1], p2[1], p3[1], t);
+    const [sx, sy] = scalePoint([x, y]);
+    if (i === 0) ctx.moveTo(sx, sy);
+    else ctx.lineTo(sx, sy);
+  }
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alphaMul})`;
+  ctx.lineWidth = widthMul * ratio;
+  ctx.stroke();
+}
+
+function drawSky(time) {
+  const bg = ctx.createLinearGradient(0, 0, width, height);
+  bg.addColorStop(0, "#030611");
+  bg.addColorStop(0.42, "#050b1a");
+  bg.addColorStop(0.75, "#020714");
+  bg.addColorStop(1, "#00030a");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
+
+  const glows = [
+    [0.22, 0.35, 0.33, "55, 96, 170", 0.08],
+    [0.75, 0.42, 0.38, "185, 92, 140", 0.055],
+    [0.50, 0.72, 0.36, "40, 140, 160", 0.052]
+  ];
+
+  for (const [gx, gy, gr, rgb, alpha] of glows) {
+    const x = width * gx + Math.sin(time * 0.07 + gx * 8) * 18 * ratio;
+    const y = height * gy + Math.cos(time * 0.05 + gy * 8) * 16 * ratio;
+    const rad = Math.min(width, height) * gr;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    grad.addColorStop(0, `rgba(${rgb}, ${alpha})`);
+    grad.addColorStop(0.46, `rgba(${rgb}, ${alpha * 0.32})`);
+    grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  for (let i = 0; i < dust.length; i += 1) {
+    const star = dust[i];
+    const twinkle = 0.72 + Math.sin(time * (0.4 + star.r * 0.16) + star.p) * 0.22;
+    ctx.beginPath();
+    ctx.arc(star.x * width, star.y * height, star.r * ratio, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(216, 229, 255, ${star.a * twinkle})`;
+    ctx.fill();
+  }
+}
+
+function drawMeteor(time) {
+  const cycle = (time % 13) / 13;
+  if (cycle > 0.2) return;
+
+  const progress = cycle / 0.2;
+  const x0 = width * 0.12;
+  const y0 = height * 0.2;
+  const len = Math.min(width, height) * 0.22;
+  const headX = x0 + len * progress * 1.4;
+  const headY = y0 + len * progress * 0.42;
+  const tailX = headX - len * 0.42;
+  const tailY = headY - len * 0.13;
+  const alpha = progress < 0.45 ? progress / 0.45 : (1 - progress) / 0.55;
+  const grad = ctx.createLinearGradient(tailX, tailY, headX, headY);
+  grad.addColorStop(0, "rgba(255, 255, 255, 0)");
+  grad.addColorStop(0.72, `rgba(142, 190, 255, ${alpha * 0.32})`);
+  grad.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.86})`);
+
+  ctx.beginPath();
+  ctx.moveTo(tailX, tailY);
+  ctx.lineTo(headX, headY);
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 1.1 * ratio;
+  ctx.stroke();
+}
+
+function drawSign(time) {
+  const sign = signs[activeSign];
+  const monthProgress = day / 30;
+  const [r, g, b] = sign.hue;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+
+  for (const stroke of sign.strokes) {
+    const reveal = ease((day - stroke[4]) / Math.max(1, stroke[5] - stroke[4]));
+
+    // A dim future trace lets the animal be anticipated without giving away the whole reward.
+    drawCubic(stroke, 1, sign.hue, 0.035, stroke[6] * 1.7);
+
+    ctx.shadowBlur = 18 * ratio;
+    ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.42)`;
+    drawCubic(stroke, reveal, sign.hue, 0.16 + reveal * 0.28, stroke[6] * 3.8);
+
+    ctx.shadowBlur = 0;
+    drawCubic(stroke, reveal, sign.hue, 0.46 + reveal * 0.36, stroke[6]);
+
+    if (reveal > 0.98) {
+      drawCubic(stroke, 1, [255, 255, 255], 0.08, stroke[6] * 0.34);
+    }
+  }
+
+  sign.anchor.forEach((point, index) => {
+    const unlock = index / Math.max(1, sign.anchor.length - 1);
+    const appear = ease((monthProgress - unlock * 0.72) / 0.18);
+    if (appear <= 0) return;
+
+    const [x, y] = scalePoint(point);
+    const pulse = 0.85 + Math.sin(time * 1.2 + index * 1.7) * 0.12;
+    const size = (1.35 + seeded(activeSign * 80 + index) * 1.35) * ratio * appear;
+
+    ctx.beginPath();
+    ctx.arc(x, y, size * (4.2 + appear * 1.8), 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${0.035 * appear})`;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x, y, size * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 248, 226, ${0.38 + appear * 0.52})`;
+    ctx.fill();
+  });
+
+  if (day >= 30) {
+    const halo = ctx.createRadialGradient(width * 0.5, height * 0.52, 0, width * 0.5, height * 0.52, Math.min(width, height) * 0.38);
+    const breathe = 0.035 + Math.sin(time * 0.7) * 0.015;
+    halo.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${breathe})`);
+    halo.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  ctx.restore();
+}
+
+function render() {
+  const time = (performance.now() - startedAt) / 1000;
+  drawSky(time);
+  drawSign(time);
+  drawMeteor(time);
+  requestAnimationFrame(render);
+}
+
+function setSign(index) {
+  activeSign = index;
+  const sign = signs[index];
+  signName.textContent = sign.name;
+  signNote.textContent = sign.note;
+  [...signButtons.children].forEach((button, buttonIndex) => {
+    button.classList.toggle("active", buttonIndex === index);
+  });
+}
+
+signs.forEach((sign, index) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = sign.name.slice(0, 3);
+  button.title = sign.name;
+  button.addEventListener("click", () => setSign(index));
+  signButtons.append(button);
+});
+
+daySlider.addEventListener("input", () => {
+  day = Number(daySlider.value);
+  dayCount.textContent = String(day);
+});
+
+addEventListener("resize", resize);
+resize();
+setSign(0);
+render();
+</script>
+</body>
+</html>
