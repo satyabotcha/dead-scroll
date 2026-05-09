@@ -165,11 +165,11 @@ function installFeedBlocker() {
 
     #${CALM_CANVAS_ID} {
       position: fixed;
-      inset: 56px 0 0 0;
+      inset: 0;
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
-      background: #080c18;
+      background: #060a14;
     }
 
     #${CALM_CANVAS_ID} canvas {
@@ -254,21 +254,51 @@ function drawCalmCanvas(canvas, timestamp) {
     const { width, height } = canvas;
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
     const t = timestamp / 1000;
+    const count = effectiveStarCount;
     ctx.clearRect(0, 0, width, height);
+    // Deep space background
     const bg = ctx.createLinearGradient(0, 0, 0, height);
-    bg.addColorStop(0, "#080c18");
-    bg.addColorStop(1, "#0d1525");
+    bg.addColorStop(0, "#060a14");
+    bg.addColorStop(0.6, "#080e1c");
+    bg.addColorStop(1, "#0b1222");
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
-    const count = effectiveStarCount;
+    // Milky Way band — subtle diagonal luminosity
+    const mwGrad = ctx.createRadialGradient(width * 0.55, height * 0.45, 0, width * 0.55, height * 0.45, width * 0.55);
+    mwGrad.addColorStop(0, "rgba(90, 110, 175, 0.055)");
+    mwGrad.addColorStop(0.5, "rgba(70, 90, 155, 0.025)");
+    mwGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = mwGrad;
+    ctx.fillRect(0, 0, width, height);
+    // Nebula clouds — emerge as count grows
+    const nebulaOpacity = Math.min(count / 25, 1) * 0.14;
+    if (nebulaOpacity > 0.005) {
+        const nebulae = [
+            { nx: 0.18, ny: 0.32, r: 0.38, rgb: "130, 70, 210", phase: 0 },
+            { nx: 0.76, ny: 0.58, r: 0.32, rgb: "35, 150, 195", phase: 1.9 },
+            { nx: 0.52, ny: 0.14, r: 0.28, rgb: "210, 65, 115", phase: 3.6 },
+            { nx: 0.88, ny: 0.22, r: 0.26, rgb: "60, 110, 220", phase: 5.2 },
+        ];
+        nebulae.forEach(({ nx, ny, r, rgb, phase }) => {
+            const cx = width * nx + Math.sin(t * 0.055 + phase) * 18 * ratio;
+            const cy = height * ny + Math.cos(t * 0.042 + phase) * 12 * ratio;
+            const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * Math.min(width, height));
+            grad.addColorStop(0, `rgba(${rgb}, ${nebulaOpacity})`);
+            grad.addColorStop(0.45, `rgba(${rgb}, ${nebulaOpacity * 0.35})`);
+            grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+        });
+    }
     if (count < 1) {
-        ctx.fillStyle = "rgba(140, 170, 220, 0.38)";
+        ctx.fillStyle = "rgba(140, 170, 220, 0.36)";
         ctx.font = `${Math.round(15 * ratio)}px system-ui, -apple-system, sans-serif`;
         ctx.textAlign = "center";
-        ctx.fillText("Your constellation awaits", width / 2, height / 2);
+        ctx.fillText("Your constellation awaits", width / 2, height * 0.52);
         return;
     }
     buildConstellationGeometry(count);
+    // Constellation edges
     cachedEdges.forEach(({ i, j, a }) => {
         const sa = cachedStars[i];
         const sb = cachedStars[j];
@@ -279,24 +309,118 @@ function drawCalmCanvas(canvas, timestamp) {
         ctx.lineWidth = 0.55 * ratio;
         ctx.stroke();
     });
+    // Stars
     cachedStars.forEach((star, i) => {
         const twinkle = 0.75 + Math.sin(t * star.s + i * 2.3) * 0.25;
         const alpha = star.b * twinkle;
         const sx = star.x * width;
         const sy = star.y * height;
-        const size = (0.8 + star.b * 1.5) * ratio;
+        const size = (0.75 + star.b * 1.6) * ratio;
+        // Core
         ctx.beginPath();
         ctx.arc(sx, sy, size, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255, 250, 235, ${alpha})`;
         ctx.fill();
-        if (star.b > 0.7) {
+        // Outer glow
+        if (star.b > 0.65) {
             ctx.beginPath();
-            ctx.arc(sx, sy, size * 3.5, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(190, 215, 255, ${alpha * 0.12})`;
+            ctx.arc(sx, sy, size * 3.8, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(185, 215, 255, ${alpha * 0.1})`;
             ctx.fill();
         }
+        // 4-point sparkle cross for the very brightest
+        if (star.b > 0.86) {
+            const armLen = size * 5.5 * (0.82 + Math.sin(t * star.s * 0.5 + i) * 0.18);
+            ctx.strokeStyle = `rgba(255, 252, 240, ${alpha * 0.38})`;
+            ctx.lineWidth = 0.6 * ratio;
+            ctx.beginPath();
+            ctx.moveTo(sx - armLen, sy);
+            ctx.lineTo(sx + armLen, sy);
+            ctx.moveTo(sx, sy - armLen);
+            ctx.lineTo(sx, sy + armLen);
+            ctx.stroke();
+        }
     });
-    ctx.fillStyle = "rgba(130, 165, 215, 0.5)";
+    // Planets — appear at focus day thresholds
+    const planetSpecs = [
+        { threshold: 7, rgb: "255, 195, 130", darkRgb: "105, 50, 15", baseR: 13, ring: false },
+        { threshold: 30, rgb: "150, 215, 255", darkRgb: "22, 70, 135", baseR: 11, ring: false },
+        { threshold: 90, rgb: "225, 192, 148", darkRgb: "72, 42, 12", baseR: 22, ring: true },
+    ];
+    planetSpecs.forEach(({ threshold, rgb, darkRgb, baseR, ring }, pi) => {
+        if (count < threshold) {
+            return;
+        }
+        const fadeIn = Math.min((count - threshold) / 12, 1);
+        const pr = baseR * ratio;
+        const px = width * (0.14 + seededRand(800 + pi) * 0.72) + Math.sin(t * 0.018 + pi * 2.4) * 9 * ratio;
+        const py = height * (0.12 + seededRand(801 + pi) * 0.72) + Math.cos(t * 0.013 + pi * 2.4) * 6 * ratio;
+        if (ring) {
+            // Ring behind planet (top arc)
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.scale(1, 0.28);
+            ctx.beginPath();
+            ctx.arc(0, 0, pr * 2.5, Math.PI, 0, false);
+            ctx.strokeStyle = `rgba(205, 172, 118, ${fadeIn * 0.42})`;
+            ctx.lineWidth = pr * 0.48;
+            ctx.stroke();
+            ctx.restore();
+        }
+        // Planet body
+        const bodyGrad = ctx.createRadialGradient(px - pr * 0.32, py - pr * 0.36, pr * 0.04, px + pr * 0.08, py + pr * 0.12, pr * 1.25);
+        bodyGrad.addColorStop(0, `rgba(${rgb}, ${fadeIn})`);
+        bodyGrad.addColorStop(0.58, `rgba(${darkRgb}, ${fadeIn * 0.88})`);
+        bodyGrad.addColorStop(1, `rgba(0, 0, 0, ${fadeIn * 0.55})`);
+        ctx.beginPath();
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+        ctx.fillStyle = bodyGrad;
+        ctx.fill();
+        // Atmosphere rim
+        ctx.beginPath();
+        ctx.arc(px, py, pr * 1.18, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${rgb}, ${fadeIn * 0.06})`;
+        ctx.fill();
+        if (ring) {
+            // Ring in front of planet (bottom arc)
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.scale(1, 0.28);
+            ctx.beginPath();
+            ctx.arc(0, 0, pr * 2.5, 0, Math.PI, false);
+            ctx.strokeStyle = `rgba(215, 185, 128, ${fadeIn * 0.62})`;
+            ctx.lineWidth = pr * 0.48;
+            ctx.stroke();
+            ctx.restore();
+        }
+    });
+    // Shooting star — fires every ~14 seconds
+    const shootPeriod = 14;
+    const shootSeed = Math.floor(t / shootPeriod);
+    const shootPhase = (t % shootPeriod) / shootPeriod;
+    if (shootPhase < 0.065) {
+        const progress = shootPhase / 0.065;
+        const sx0 = seededRand(shootSeed * 4) * width;
+        const sy0 = seededRand(shootSeed * 4 + 1) * height * 0.5;
+        const angle = 0.18 + seededRand(shootSeed * 4 + 2) * 0.22;
+        const len = (90 + seededRand(shootSeed * 4 + 3) * 110) * ratio;
+        const headX = sx0 + Math.cos(angle) * len * progress;
+        const headY = sy0 + Math.sin(angle) * len * progress;
+        const tailX = headX - Math.cos(angle) * len * Math.min(progress * 1.6, 1) * 0.55;
+        const tailY = headY - Math.sin(angle) * len * Math.min(progress * 1.6, 1) * 0.55;
+        const shootAlpha = progress < 0.65 ? progress / 0.65 : (1 - progress) / 0.35;
+        const shootGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
+        shootGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
+        shootGrad.addColorStop(1, `rgba(255, 255, 255, ${shootAlpha * 0.92})`);
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(headX, headY);
+        ctx.strokeStyle = shootGrad;
+        ctx.lineWidth = 1.4 * ratio;
+        ctx.stroke();
+    }
+    // Focus day count
+    ctx.fillStyle = "rgba(125, 160, 210, 0.48)";
     ctx.font = `${Math.round(13 * ratio)}px system-ui, -apple-system, sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(count === 1 ? "1 focus day" : `${count} focus days`, width / 2, height - 20 * ratio);
