@@ -89,6 +89,8 @@ const YOUTUBE_SETTINGS_KEY = "focusMode";
 const CONSTELLATION_PREVIEW_KEY = "constellationPreviewDays";
 const CONSTELLATION_FOCUS_DAYS_KEY = "constellationFocusDays";
 const CONSTELLATION_LAST_DATE_KEY = "constellationLastDate";
+const CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO = 1.5;
+const CALM_CANVAS_FRAME_INTERVAL_MS = 1000 / 24;
 const YOUTUBE_DEFAULT_FOCUS_MODE = true;
 const AUTOPLAY_TOGGLE_SELECTOR = ".ytp-autonav-toggle-button[aria-checked]";
 const AUTOPLAY_CLICK_COOLDOWN_MS = 750;
@@ -131,6 +133,7 @@ let playbackRateBeforeAd = 1;
 let mutedBeforeAd = false;
 let calmCanvasAnimationFrame = 0;
 let calmCanvasResizeObserver: ResizeObserver | null = null;
+let calmCanvasLastFrameAt = 0;
 let effectiveStarCount = 0;
 let cachedGeometryCount = -1;
 let cachedStars: Array<{ x: number; y: number; b: number; s: number }> = [];
@@ -198,6 +201,23 @@ const BLACK_HOLE_FRAGMENT_SHADER = `
     vec3 blueRing = vec3(0.32, 0.62, 0.92) * outerRing * 0.12;
 
     color += warmRing + blueRing;
+
+    for (int i = 0; i < 3; i++) {
+      float fi = float(i);
+      float period = 11.0 + fi * 4.0;
+      float phase = mod(u_time + fi * 3.7, period) / period;
+      vec2 start = vec2(0.12 + fract(sin(fi * 42.13 + 3.1) * 43758.5453) * 0.72, 0.12 + fract(sin(fi * 17.41 + 8.4) * 43758.5453) * 0.28);
+      vec2 direction = normalize(vec2(0.78, 0.24 + fi * 0.07));
+      vec2 head = start + direction * phase * 0.86;
+      vec2 toPixel = uv - head;
+      float along = dot(toPixel, -direction);
+      float across = length(toPixel + direction * along);
+      float trail = smoothstep(0.18, 0.0, along) * smoothstep(0.0, 0.018, along) * smoothstep(0.012, 0.0, across);
+      float life = phase < 0.18 ? sin(phase / 0.18 * 3.14159265) : 0.0;
+
+      color += vec3(0.88, 0.94, 1.0) * trail * life * 0.95;
+    }
+
     color = mix(color, vec3(0.0, 0.0, 0.015), eventHorizon * 0.95);
     color *= 0.88 + smoothstep(0.06, 0.48, dist) * 0.16;
 
@@ -295,12 +315,13 @@ function removeCalmCanvas(): void {
 
   calmCanvasResizeObserver?.disconnect();
   calmCanvasResizeObserver = null;
+  calmCanvasLastFrameAt = 0;
   calmWebGLRenderer = null;
   document.getElementById(CALM_CANVAS_ID)?.remove();
 }
 
 function resizeCalmCanvas(canvas: HTMLCanvasElement): void {
-  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const ratio = Math.min(window.devicePixelRatio || 1, CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO);
   const width = Math.max(1, Math.floor(canvas.clientWidth * ratio));
   const height = Math.max(1, Math.floor(canvas.clientHeight * ratio));
 
@@ -367,7 +388,7 @@ function drawUniverseFallback(canvas: HTMLCanvasElement, timestamp: number): voi
   resizeCalmCanvas(canvas);
 
   const { width, height } = canvas;
-  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const ratio = Math.min(window.devicePixelRatio || 1, CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO);
   const t = timestamp / 1000;
   const count = effectiveStarCount;
 
@@ -879,7 +900,11 @@ function startCalmCanvas(canvas: HTMLCanvasElement): void {
       return;
     }
 
-    drawCalmCanvas(canvas, timestamp);
+    if (document.visibilityState === "visible" && timestamp - calmCanvasLastFrameAt >= CALM_CANVAS_FRAME_INTERVAL_MS) {
+      calmCanvasLastFrameAt = timestamp;
+      drawCalmCanvas(canvas, timestamp);
+    }
+
     calmCanvasAnimationFrame = requestAnimationFrame(tick);
   };
 
