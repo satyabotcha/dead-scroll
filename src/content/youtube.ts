@@ -91,6 +91,7 @@ const CONSTELLATION_FOCUS_DAYS_KEY = "constellationFocusDays";
 const CONSTELLATION_LAST_DATE_KEY = "constellationLastDate";
 const CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO = 1.5;
 const CALM_CANVAS_FRAME_INTERVAL_MS = 1000 / 24;
+const YOUTUBE_MASTHEAD_HEIGHT_PX = 56;
 const YOUTUBE_DEFAULT_FOCUS_MODE = true;
 const AUTOPLAY_TOGGLE_SELECTOR = ".ytp-autonav-toggle-button[aria-checked]";
 const AUTOPLAY_CLICK_COOLDOWN_MS = 750;
@@ -190,7 +191,7 @@ function installFeedBlocker(): void {
 
     #${CALM_CANVAS_ID} {
       position: fixed;
-      top: 148px;
+      top: ${YOUTUBE_MASTHEAD_HEIGHT_PX}px;
       right: 0;
       bottom: 0;
       left: 0;

@@ -36,3 +36,7 @@
 ### 2026-05-09 LinkedIn top-chrome direction
 **Context:** The user marked the exact LinkedIn surfaces to keep.
 **Learning:** On LinkedIn feed, keep only top chrome for search, My Network, Jobs, Messaging, Me, and For Business. Hide the feed body entirely, including composer, sidebars, news, puzzles, floating messaging drawer, Home, Notifications, and Sales Nav.
+
+### 2026-05-09 YouTube calm canvas offset
+**Context:** YouTube home showed a large empty gap between the masthead and the injected calm canvas.
+**Learning:** The canvas was using an old `148px` top offset that included removed feed/chipbar space. Anchor home canvas visuals to the `56px` masthead height unless the live masthead layout changes.
