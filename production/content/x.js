@@ -6,6 +6,7 @@
     const HIDDEN_ATTRIBUTE = "data-feed-remover-x-hidden";
     const DISTRACTING_PRIMARY_NAV_SELECTORS = [
         "nav[aria-label='Primary']",
+        "header[role='banner'] a[href='/compose/post']",
         "[data-testid='AppTabBar_Home_Link']",
         "[data-testid='AppTabBar_Explore_Link']",
         "[data-testid='AppTabBar_Notifications_Link']",
@@ -140,6 +141,57 @@
         style.textContent = `
     html[data-feed-remover-x-focus-mode="true"] ${DISTRACTING_PRIMARY_NAV_SELECTORS.join(",\n    html[data-feed-remover-x-focus-mode=\"true\"] ")} {
       display: none !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] body {
+      overflow-x: hidden !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] header[role="banner"] {
+      width: 0 !important;
+      min-width: 0 !important;
+      flex-basis: 0 !important;
+      z-index: auto !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] header[role="banner"] a[aria-label="X"] {
+      display: flex !important;
+      position: fixed !important;
+      top: 12px !important;
+      left: 28px !important;
+      z-index: 2147483646 !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] header[role="banner"] button[aria-label="Account menu"] {
+      display: flex !important;
+      position: fixed !important;
+      top: 10px !important;
+      right: 28px !important;
+      z-index: 2147483646 !important;
+      width: auto !important;
+      min-width: 0 !important;
+      background: transparent !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] [data-testid="sidebarColumn"] {
+      width: 0 !important;
+      min-width: 0 !important;
+      flex-basis: 0 !important;
+      margin: 0 !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] [data-testid="sidebarColumn"] [role="search"] {
+      display: block !important;
+      position: fixed !important;
+      top: 12px !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      width: min(560px, 46vw) !important;
+      z-index: 2147483646 !important;
+    }
+
+    html[data-feed-remover-x-focus-mode="true"] main[role="main"] {
+      margin-top: 72px !important;
     }
 
     html[data-feed-remover-x-focus-mode="true"] ${GLOBAL_DISTRACTION_SELECTORS.join(",\n    html[data-feed-remover-x-focus-mode=\"true\"] ")} {
