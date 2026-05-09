@@ -6,24 +6,25 @@
     const HIDDEN_ATTRIBUTE = "data-feed-remover-x-hidden";
     const DISTRACTING_PRIMARY_NAV_SELECTORS = [
         "[data-testid='AppTabBar_Home_Link']",
-        "[data-testid='AppTabBar_Explore_Link']",
         "[data-testid='AppTabBar_Notifications_Link']",
         "[data-testid='AppTabBar_Messages_Link']",
         "[data-testid='AppTabBar_Bookmarks_Link']",
         "[data-testid='AppTabBar_Communities_Link']",
         "nav[aria-label='Primary'] a[href='/home']",
-        "nav[aria-label='Primary'] a[href='/explore']",
+        "nav[aria-label='Primary'] a[href^='/i/connect_people']",
         "nav[aria-label='Primary'] a[href^='/notifications']",
         "nav[aria-label='Primary'] a[href^='/messages']",
         "nav[aria-label='Primary'] a[href^='/i/bookmarks']",
         "nav[aria-label='Primary'] a[href^='/i/communities']",
         "nav[aria-label='Primary'] a[href^='/i/grok']",
         "nav[aria-label='Primary'] a[href^='/jobs']",
+        "nav[aria-label='Primary'] a[href^='/i/articles']",
         "nav[aria-label='Primary'] a[href^='/i/premium']",
         "nav[aria-label='Primary'] a[href^='/settings']"
     ];
     const GLOBAL_DISTRACTION_SELECTORS = [
         "button[aria-label='Skip to trending']",
+        "[data-testid='sidebarColumn']",
         "[data-testid='sidebarColumn'] [aria-label='Trending']",
         "[data-testid='sidebarColumn'] [aria-label='Who to follow']",
         "[data-testid='sidebarColumn'] [aria-label='Relevant people']",
@@ -36,6 +37,7 @@
     const HOME_PAGE_SELECTORS = [
         "main [role='tablist']",
         "main [role='status']",
+        "main [data-testid='cellInnerDiv']",
         "main [data-testid='cellInnerDiv']:has(article)",
         "main article",
         "main [data-testid='trend']",
@@ -78,8 +80,8 @@
         "settings"
     ]);
     const DISTRACTING_HEADINGS = [
+        "creators for you",
         "discover more",
-        "explore",
         "live on x",
         "new to x?",
         "people you may know",
@@ -93,6 +95,16 @@
         "who to follow",
         "you might like"
     ];
+    const DISTRACTING_PRIMARY_NAV_LABELS = new Set([
+        "articles",
+        "chat",
+        "follow",
+        "grok",
+        "home",
+        "more",
+        "notifications",
+        "premium"
+    ]);
     const TEXT_CLEANUP_SELECTOR = [
         "h1",
         "h2",
@@ -211,7 +223,8 @@
         return DISTRACTING_HEADINGS.some((heading) => text === heading || text.startsWith(`${heading} `));
     }
     function isVariableRewardStatus(element) {
-        return normalizedText(element).startsWith("see new posts");
+        const text = normalizedText(element);
+        return text.startsWith("see new posts") || /^show [0-9,.]+ posts?$/.test(text) || text === "show more";
     }
     function hideDistractingModule(labelElement) {
         const container = labelElement.closest(DISTRACTION_CONTAINER_SELECTOR);
@@ -219,11 +232,23 @@
             hideElement(container);
         }
     }
+    function hideDistractingPrimaryNavItems() {
+        document.querySelectorAll("nav[aria-label='Primary'] a, nav[aria-label='Primary'] button").forEach((element) => {
+            if (!DISTRACTING_PRIMARY_NAV_LABELS.has(normalizedText(element))) {
+                return;
+            }
+            // Some logged-in X layouts changed routes but kept stable visible nav labels.
+            if (element instanceof HTMLElement) {
+                hideElement(element);
+            }
+        });
+    }
     function applyTextBasedCleanup(focusMode) {
         if (!focusMode) {
             showPreviouslyHiddenElements();
             return;
         }
+        hideDistractingPrimaryNavItems();
         document.querySelectorAll(TEXT_CLEANUP_SELECTOR).forEach((element) => {
             if (hasDistractingHeading(element) || isVariableRewardStatus(element)) {
                 // X ships frequent class churn, so stable visible labels are safer than layout-class guesses here.
