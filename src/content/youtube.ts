@@ -190,7 +190,10 @@ function installFeedBlocker(): void {
 
     #${CALM_CANVAS_ID} {
       position: fixed;
-      inset: 0;
+      top: 148px;
+      right: 0;
+      bottom: 0;
+      left: 0;
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
@@ -246,6 +249,22 @@ function seededRand(seed: number): number {
   return x - Math.floor(x);
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const x = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return x * x * (3 - 2 * x);
+}
+
+function getVisibleConstellationStarCount(days: number): number {
+  const progress = clamp(days, 0, 365) / 365;
+
+  // Days are the seed of richness, but visible stars are capped so the sky stays calm at a full year.
+  return Math.round(10 + 170 * Math.pow(progress, 0.68));
+}
+
 function buildConstellationGeometry(count: number): void {
   if (count === cachedGeometryCount) {
     return;
@@ -260,7 +279,7 @@ function buildConstellationGeometry(count: number): void {
   }));
 
   cachedEdges = [];
-  const THRESHOLD = 0.18;
+  const THRESHOLD = 0.17;
 
   cachedStars.forEach((star, i) => {
     const neighbors: Array<{ j: number; dist: number }> = [];
@@ -283,7 +302,7 @@ function buildConstellationGeometry(count: number): void {
       .sort((a, b) => a.dist - b.dist)
       .slice(0, 3)
       .forEach(({ j, dist }) => {
-        cachedEdges.push({ i, j, a: (1 - dist / THRESHOLD) * 0.35 });
+        cachedEdges.push({ i, j, a: (1 - dist / THRESHOLD) * 0.22 });
       });
   });
 }
@@ -297,23 +316,37 @@ function drawBlackHole(
   fadeIn: number,
   ratio: number
 ): void {
-  const tilt = 0.14 + Math.sin(t * 0.007) * 0.035;
-  const inner = br * 1.28;
-  const outer = br * 3.5;
-  const rings = 12;
-  const flatY = 0.22;
+  const tilt = -0.03 + Math.sin(t * 0.018) * 0.012;
+  const inner = br * 1.18;
+  const outer = br * 2.25;
+  const rings = 9;
+  const flatY = 0.27;
 
-  // Ambient warm halo
-  const halo = ctx.createRadialGradient(bx, by, br * 0.8, bx, by, br * 5.5);
-  halo.addColorStop(0, `rgba(255, 130, 35, ${fadeIn * 0.07})`);
-  halo.addColorStop(0.35, `rgba(190, 75, 15, ${fadeIn * 0.03})`);
+  const blueWash = ctx.createRadialGradient(bx - br * 1.7, by + br * 0.8, 0, bx, by, br * 5.1);
+  blueWash.addColorStop(0, `rgba(82, 93, 190, ${fadeIn * 0.16})`);
+  blueWash.addColorStop(0.46, `rgba(55, 76, 170, ${fadeIn * 0.07})`);
+  blueWash.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.beginPath();
+  ctx.arc(bx - br * 1.1, by + br * 0.55, br * 4.7, 0, Math.PI * 2);
+  ctx.fillStyle = blueWash;
+  ctx.fill();
+
+  const halo = ctx.createRadialGradient(bx, by, br * 0.9, bx, by, br * 3.4);
+  halo.addColorStop(0, `rgba(255, 222, 165, ${fadeIn * 0.11})`);
+  halo.addColorStop(0.32, `rgba(210, 155, 95, ${fadeIn * 0.07})`);
+  halo.addColorStop(0.64, `rgba(130, 92, 70, ${fadeIn * 0.025})`);
   halo.addColorStop(1, "rgba(0,0,0,0)");
   ctx.beginPath();
-  ctx.arc(bx, by, br * 5.5, 0, Math.PI * 2);
+  ctx.arc(bx, by, br * 3.4, 0, Math.PI * 2);
   ctx.fillStyle = halo;
   ctx.fill();
 
-  // Back half of accretion disk — dimmer, top arc
+  const diskGradient = ctx.createLinearGradient(bx - br * 2.7, by, bx + br * 2.7, by);
+  diskGradient.addColorStop(0, `rgba(205, 185, 145, ${fadeIn * 0.02})`);
+  diskGradient.addColorStop(0.38, `rgba(255, 231, 188, ${fadeIn * 0.2})`);
+  diskGradient.addColorStop(0.58, `rgba(238, 177, 100, ${fadeIn * 0.16})`);
+  diskGradient.addColorStop(1, `rgba(170, 115, 72, ${fadeIn * 0.02})`);
+
   ctx.save();
   ctx.translate(bx, by);
   ctx.rotate(tilt);
@@ -322,25 +355,22 @@ function drawBlackHole(
   for (let ri = rings - 1; ri >= 0; ri -= 1) {
     const frac = ri / (rings - 1);
     const radius = inner + frac * (outer - inner);
-    const r = Math.round(255 - frac * 75);
-    const g = Math.round(230 - frac * 155);
-    const b = Math.round(175 - frac * 155);
-    const a = Math.pow(1 - frac, 0.82) * 0.45 * fadeIn;
 
     ctx.beginPath();
     ctx.arc(0, 0, radius, Math.PI, 0, false);
-    ctx.strokeStyle = `rgba(${r},${g},${b},${a})`;
-    ctx.lineWidth = br * 0.4;
+    ctx.strokeStyle = diskGradient;
+    ctx.globalAlpha = Math.pow(1 - frac, 0.85) * fadeIn * 0.42;
+    ctx.lineWidth = br * 0.26;
     ctx.stroke();
   }
 
   ctx.restore();
+  ctx.globalAlpha = 1;
 
-  // Event horizon with photon sphere rim
   const bodyGrad = ctx.createRadialGradient(bx, by, br * 0.35, bx, by, br * 1.1);
   bodyGrad.addColorStop(0, `rgba(0,0,6,${fadeIn})`);
-  bodyGrad.addColorStop(0.88, `rgba(0,0,10,${fadeIn})`);
-  bodyGrad.addColorStop(1, `rgba(95,145,225,${fadeIn * 0.55})`);
+  bodyGrad.addColorStop(0.86, `rgba(0,0,9,${fadeIn})`);
+  bodyGrad.addColorStop(1, `rgba(72,88,134,${fadeIn * 0.4})`);
   ctx.beginPath();
   ctx.arc(bx, by, br * 1.1, 0, Math.PI * 2);
   ctx.fillStyle = bodyGrad;
@@ -351,7 +381,6 @@ function drawBlackHole(
   ctx.fillStyle = `rgba(0,0,0,${fadeIn})`;
   ctx.fill();
 
-  // Front half of accretion disk — brighter, bottom arc
   ctx.save();
   ctx.translate(bx, by);
   ctx.rotate(tilt);
@@ -360,66 +389,28 @@ function drawBlackHole(
   for (let ri = rings - 1; ri >= 0; ri -= 1) {
     const frac = ri / (rings - 1);
     const radius = inner + frac * (outer - inner);
-    const r = Math.round(255 - frac * 55);
-    const g = Math.round(242 - frac * 168);
-    const b = Math.round(192 - frac * 172);
-    const a = Math.pow(1 - frac, 0.72) * 0.96 * fadeIn;
 
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI, false);
-    ctx.strokeStyle = `rgba(${r},${g},${b},${a})`;
-    ctx.lineWidth = br * 0.4;
+    ctx.strokeStyle = diskGradient;
+    ctx.globalAlpha = Math.pow(1 - frac, 0.72) * fadeIn * 0.76;
+    ctx.lineWidth = br * 0.29;
     ctx.stroke();
   }
 
   ctx.restore();
+  ctx.globalAlpha = 1;
 
-  // Relativistic Doppler hotspot — brighter on approaching side
-  const hotX = bx + br * 0.9;
-  const hotY = by + br * 0.08;
-  const hot = ctx.createRadialGradient(hotX, hotY, 0, hotX, hotY, br * 1.15);
-  hot.addColorStop(0, `rgba(255, 235, 155, ${fadeIn * 0.52})`);
-  hot.addColorStop(0.38, `rgba(255, 150, 45, ${fadeIn * 0.18})`);
-  hot.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.beginPath();
-  ctx.arc(hotX, hotY, br * 1.15, 0, Math.PI * 2);
-  ctx.fillStyle = hot;
-  ctx.fill();
-
-  // Subtle lensing arc above the black hole (top photon capture ring)
   ctx.save();
   ctx.translate(bx, by);
   ctx.rotate(tilt);
-  ctx.scale(1, flatY * 0.65);
+  ctx.scale(1, flatY * 0.7);
   ctx.beginPath();
   ctx.arc(0, 0, br * 1.22, Math.PI * 0.15, Math.PI * 0.85, false);
-  ctx.strokeStyle = `rgba(200, 220, 255, ${fadeIn * 0.35})`;
-  ctx.lineWidth = ratio * 1.2;
+  ctx.strokeStyle = `rgba(210, 225, 255, ${fadeIn * 0.2})`;
+  ctx.lineWidth = ratio * 0.9;
   ctx.stroke();
   ctx.restore();
-
-  // Very faint relativistic jet perpendicular to disk
-  const jetLen = br * 2.8;
-  const jetAngle = tilt - Math.PI / 2;
-  const jGrad = ctx.createLinearGradient(bx, by, bx + Math.cos(jetAngle) * jetLen, by + Math.sin(jetAngle) * jetLen);
-  jGrad.addColorStop(0, `rgba(160, 190, 255, ${fadeIn * 0.18})`);
-  jGrad.addColorStop(1, "rgba(100, 140, 255, 0)");
-  ctx.beginPath();
-  ctx.moveTo(bx, by);
-  ctx.lineTo(bx + Math.cos(jetAngle) * jetLen, by + Math.sin(jetAngle) * jetLen);
-  ctx.strokeStyle = jGrad;
-  ctx.lineWidth = ratio * 1.8;
-  ctx.stroke();
-
-  const jGrad2 = ctx.createLinearGradient(bx, by, bx - Math.cos(jetAngle) * jetLen, by - Math.sin(jetAngle) * jetLen);
-  jGrad2.addColorStop(0, `rgba(160, 190, 255, ${fadeIn * 0.18})`);
-  jGrad2.addColorStop(1, "rgba(100, 140, 255, 0)");
-  ctx.beginPath();
-  ctx.moveTo(bx, by);
-  ctx.lineTo(bx - Math.cos(jetAngle) * jetLen, by - Math.sin(jetAngle) * jetLen);
-  ctx.strokeStyle = jGrad2;
-  ctx.lineWidth = ratio * 1.8;
-  ctx.stroke();
 }
 
 function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
@@ -434,170 +425,123 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   const { width, height } = canvas;
   const ratio = Math.min(window.devicePixelRatio || 1, CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO);
   const t = timestamp / 1000;
-  const count = effectiveStarCount;
+  const days = clamp(effectiveStarCount, 0, 365);
+  const habitProgress = smoothstep(0, 365, days);
+  const starCount = getVisibleConstellationStarCount(days);
+  const constellationProgress = smoothstep(1, 120, days);
+  const nebulaDepth = 0.035 + smoothstep(7, 365, days) * 0.13;
 
   ctx.clearRect(0, 0, width, height);
 
-  // Deep space background
-  const bg = ctx.createLinearGradient(0, 0, 0, height);
-  bg.addColorStop(0, "#050810");
-  bg.addColorStop(0.55, "#070c1a");
-  bg.addColorStop(1, "#0a1020");
+  const bg = ctx.createLinearGradient(0, 0, width, height);
+  bg.addColorStop(0, "#050a15");
+  bg.addColorStop(0.44, "#071122");
+  bg.addColorStop(0.72, "#060a15");
+  bg.addColorStop(1, "#030712");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
-  // Galactic core glow — off-centre warm haze
-  const coreGrad = ctx.createRadialGradient(
-    width * 0.58, height * 0.42, 0,
-    width * 0.58, height * 0.42, width * 0.5
-  );
-  coreGrad.addColorStop(0, "rgba(100, 115, 185, 0.06)");
-  coreGrad.addColorStop(0.45, "rgba(75, 90, 160, 0.028)");
-  coreGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-  ctx.fillStyle = coreGrad;
-  ctx.fillRect(0, 0, width, height);
+  const nebulae = [
+    { nx: 0.72, ny: 0.34, r: 0.34, rgb: "45, 126, 170", phase: 1.7, base: 0.78 },
+    { nx: 0.21, ny: 0.55, r: 0.37, rgb: "69, 74, 175", phase: 0.2, base: 0.9 },
+    { nx: 0.51, ny: 0.81, r: 0.27, rgb: "165, 56, 112", phase: 3.4, base: 0.62 },
+    { nx: 0.46, ny: 0.42, r: 0.24, rgb: "57, 87, 153", phase: 5.1, base: 0.5 },
+  ];
 
-  // Nebula clouds — breathe in and out, emerge as count grows
-  const nebulaBase = Math.min(count / 25, 1) * 0.15;
+  nebulae.forEach(({ nx, ny, r, rgb, phase, base }) => {
+    const pulse = 1 + Math.sin(t * 0.055 + phase) * 0.055;
+    const cx = width * nx + Math.sin(t * 0.012 + phase) * 9 * ratio;
+    const cy = height * ny + Math.cos(t * 0.01 + phase) * 7 * ratio;
+    const opacity = nebulaDepth * base * pulse;
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * Math.min(width, height));
 
-  if (nebulaBase > 0.004) {
-    const nebulae = [
-      { nx: 0.18, ny: 0.32, r: 0.38, rgb: "128, 65, 215", phase: 0 },
-      { nx: 0.76, ny: 0.58, r: 0.32, rgb: "30, 148, 198", phase: 1.9 },
-      { nx: 0.52, ny: 0.14, r: 0.28, rgb: "215, 60, 110", phase: 3.6 },
-      { nx: 0.88, ny: 0.24, r: 0.26, rgb: "55, 108, 225", phase: 5.2 },
-    ];
+    grad.addColorStop(0, `rgba(${rgb}, ${opacity})`);
+    grad.addColorStop(0.42, `rgba(${rgb}, ${opacity * 0.34})`);
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+  });
 
-    nebulae.forEach(({ nx, ny, r, rgb, phase }) => {
-      const pulse = 1 + Math.sin(t * 0.19 + phase) * 0.09;
-      const opacity = nebulaBase * pulse;
-      const cx = width * nx + Math.sin(t * 0.052 + phase) * 16 * ratio;
-      const cy = height * ny + Math.cos(t * 0.04 + phase) * 11 * ratio;
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * Math.min(width, height));
-      grad.addColorStop(0, `rgba(${rgb}, ${opacity})`);
-      grad.addColorStop(0.45, `rgba(${rgb}, ${opacity * 0.32})`);
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, height);
-    });
-  }
+  const dustCount = Math.round(90 + habitProgress * 90);
 
-  // Background dust field — always visible, makes space feel deep
-  for (let i = 0; i < 240; i += 1) {
+  for (let i = 0; i < dustCount; i += 1) {
     const dx = seededRand(5000 + i * 4) * width;
     const dy = seededRand(5001 + i * 4) * height;
-    const da = 0.07 + seededRand(5002 + i * 4) * 0.16;
-    const ds = (0.28 + seededRand(5003 + i * 4) * 0.42) * ratio;
+    const da = (0.025 + seededRand(5002 + i * 4) * 0.08) * (0.65 + habitProgress * 0.35);
+    const ds = (0.24 + seededRand(5003 + i * 4) * 0.46) * ratio;
     ctx.beginPath();
     ctx.arc(dx, dy, ds, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(195, 215, 255, ${da})`;
     ctx.fill();
   }
 
-  if (count < 1) {
-    ctx.fillStyle = "rgba(140, 170, 220, 0.38)";
-    ctx.font = `${Math.round(15 * ratio)}px system-ui, -apple-system, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillText("Your constellation awaits", width / 2, height * 0.52);
-  } else {
-    buildConstellationGeometry(count);
+  buildConstellationGeometry(starCount);
 
-    // Constellation edges
-    cachedEdges.forEach(({ i, j, a }) => {
-      const sa = cachedStars[i];
-      const sb = cachedStars[j];
+  cachedEdges.forEach(({ i, j, a }) => {
+    const sa = cachedStars[i];
+    const sb = cachedStars[j];
+    const alpha = a * (0.18 + constellationProgress * 0.82);
+
+    ctx.beginPath();
+    ctx.moveTo(sa.x * width, sa.y * height);
+    ctx.lineTo(sb.x * width, sb.y * height);
+    ctx.strokeStyle = `rgba(125, 167, 226, ${alpha})`;
+    ctx.lineWidth = 0.46 * ratio;
+    ctx.stroke();
+  });
+
+  cachedStars.forEach((star, i) => {
+    const tw = Math.sin(t * (0.055 + star.s * 0.052) + i * 2.3) * 0.075;
+    const twinkle = 0.86 + tw;
+    const alpha = (0.18 + star.b * 0.72) * twinkle * (0.55 + constellationProgress * 0.45);
+    const parallax = (seededRand(i * 4 + 6) - 0.5) * 5 * ratio;
+    const sx = star.x * width + Math.sin(t * 0.008 + i) * parallax;
+    const sy = star.y * height + Math.cos(t * 0.007 + i * 0.7) * parallax;
+    const size = (0.46 + star.b * 1.05) * ratio;
+    const temp = seededRand(i * 4 + 5);
+    const sr = Math.round(246 - temp * 18);
+    const sg = Math.round(246 - temp * 2);
+    const sb2 = Math.round(225 + temp * 26);
+
+    if (star.b > 0.55) {
       ctx.beginPath();
-      ctx.moveTo(sa.x * width, sa.y * height);
-      ctx.lineTo(sb.x * width, sb.y * height);
-      ctx.strokeStyle = `rgba(150, 195, 255, ${a})`;
-      ctx.lineWidth = 0.55 * ratio;
-      ctx.stroke();
-    });
-
-    // Constellation stars — colour temperature + dual-frequency twinkle
-    cachedStars.forEach((star, i) => {
-      const tw = Math.sin(t * star.s + i * 2.3) * 0.16 + Math.sin(t * star.s * 1.73 + i * 0.9) * 0.09;
-      const twinkle = 0.75 + tw;
-      const alpha = star.b * twinkle;
-      const sx = star.x * width;
-      const sy = star.y * height;
-      const size = (0.72 + star.b * 1.65) * ratio;
-
-      // Colour temperature: cool stars warm-yellow, hot stars blue-white
-      const temp = seededRand(i * 4 + 5);
-      const sr = Math.round(255 - temp * 28);
-      const sg = Math.round(248 - temp * 6);
-      const sb2 = Math.round(218 + temp * 37);
-
-      ctx.beginPath();
-      ctx.arc(sx, sy, size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha})`;
+      ctx.arc(sx, sy, size * (4.8 + habitProgress * 1.8), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha * 0.08})`;
       ctx.fill();
+    }
 
-      // Outer glow
-      if (star.b > 0.62) {
-        ctx.beginPath();
-        ctx.arc(sx, sy, size * 4, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha * 0.09})`;
-        ctx.fill();
-      }
+    ctx.beginPath();
+    ctx.arc(sx, sy, size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha})`;
+    ctx.fill();
+  });
 
-      // 8-point sparkle for very brightest
-      if (star.b > 0.85) {
-        const arm = size * 5.8 * (0.8 + Math.sin(t * star.s * 0.48 + i) * 0.2);
-        const diag = arm * 0.6;
-        ctx.strokeStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha * 0.36})`;
-        ctx.lineWidth = 0.55 * ratio;
-        ctx.beginPath();
-        ctx.moveTo(sx - arm, sy); ctx.lineTo(sx + arm, sy);
-        ctx.moveTo(sx, sy - arm); ctx.lineTo(sx, sy + arm);
-        ctx.moveTo(sx - diag, sy - diag); ctx.lineTo(sx + diag, sy + diag);
-        ctx.moveTo(sx + diag, sy - diag); ctx.lineTo(sx - diag, sy + diag);
-        ctx.stroke();
-      }
-    });
+  const bhFadeIn = smoothstep(21, 28, days);
 
-    // Focus day count label
-    ctx.fillStyle = "rgba(125, 160, 210, 0.46)";
-    ctx.font = `${Math.round(13 * ratio)}px system-ui, -apple-system, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillText(
-      count === 1 ? "1 focus day" : `${count} focus days`,
-      width / 2,
-      height - 20 * ratio
-    );
-  }
-
-  // Black hole — appears at 14 focus days, drifts very slowly
-  if (count >= 14) {
-    const bhFadeIn = Math.min((count - 14) / 18, 1);
-    const bhR = Math.min(width, height) * 0.12;
-    const bhX = width * 0.50
-      + Math.sin(t * 0.016) * width * 0.13
-      + Math.sin(t * 0.006) * width * 0.055;
-    const bhY = height * 0.44
-      + Math.cos(t * 0.013) * height * 0.11
-      + Math.cos(t * 0.005) * height * 0.045;
+  if (bhFadeIn > 0) {
+    const bhScale = 0.085 + smoothstep(28, 365, days) * 0.035;
+    const bhR = Math.min(width, height) * bhScale;
+    const bhX = width * 0.29 + Math.sin(t * 0.006) * width * 0.01;
+    const bhY = height * 0.53 + Math.cos(t * 0.005) * height * 0.012;
 
     drawBlackHole(ctx, bhX, bhY, bhR, t, bhFadeIn, ratio);
   }
 
-  // Planets — appear at focus day thresholds
   const planetSpecs = [
-    { threshold: 7,  rgb: "255, 195, 130", darkRgb: "105, 50, 15",  baseR: 13, ring: false },
-    { threshold: 30, rgb: "150, 215, 255", darkRgb: "22, 70, 135",  baseR: 11, ring: false },
-    { threshold: 90, rgb: "225, 192, 148", darkRgb: "72, 42, 12",   baseR: 22, ring: true  },
+    { threshold: 60, rgb: "140, 196, 238", darkRgb: "23, 61, 114", baseR: 7, ring: false, nx: 0.77, ny: 0.38 },
+    { threshold: 140, rgb: "226, 191, 148", darkRgb: "80, 49, 22", baseR: 10, ring: true, nx: 0.84, ny: 0.68 },
+    { threshold: 240, rgb: "198, 170, 235", darkRgb: "58, 44, 110", baseR: 8, ring: false, nx: 0.18, ny: 0.28 },
   ];
 
-  planetSpecs.forEach(({ threshold, rgb, darkRgb, baseR, ring }, pi) => {
-    if (count < threshold) {
+  planetSpecs.forEach(({ threshold, rgb, darkRgb, baseR, ring, nx, ny }, pi) => {
+    if (days < threshold) {
       return;
     }
 
-    const fadeIn = Math.min((count - threshold) / 12, 1);
+    const fadeIn = smoothstep(threshold, threshold + 24, days) * 0.7;
     const pr = baseR * ratio;
-    const px = width * (0.14 + seededRand(800 + pi) * 0.72) + Math.sin(t * 0.018 + pi * 2.4) * 9 * ratio;
-    const py = height * (0.12 + seededRand(801 + pi) * 0.72) + Math.cos(t * 0.013 + pi * 2.4) * 6 * ratio;
+    const px = width * nx + Math.sin(t * 0.006 + pi * 2.4) * 4 * ratio;
+    const py = height * ny + Math.cos(t * 0.005 + pi * 2.4) * 3 * ratio;
 
     if (ring) {
       ctx.save();
@@ -605,8 +549,8 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
       ctx.scale(1, 0.28);
       ctx.beginPath();
       ctx.arc(0, 0, pr * 2.5, Math.PI, 0, false);
-      ctx.strokeStyle = `rgba(205, 172, 118, ${fadeIn * 0.42})`;
-      ctx.lineWidth = pr * 0.48;
+      ctx.strokeStyle = `rgba(205, 172, 118, ${fadeIn * 0.3})`;
+      ctx.lineWidth = pr * 0.34;
       ctx.stroke();
       ctx.restore();
     }
@@ -625,7 +569,7 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
 
     ctx.beginPath();
     ctx.arc(px, py, pr * 1.18, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${rgb}, ${fadeIn * 0.06})`;
+    ctx.fillStyle = `rgba(${rgb}, ${fadeIn * 0.05})`;
     ctx.fill();
 
     if (ring) {
@@ -634,33 +578,35 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
       ctx.scale(1, 0.28);
       ctx.beginPath();
       ctx.arc(0, 0, pr * 2.5, 0, Math.PI, false);
-      ctx.strokeStyle = `rgba(215, 185, 128, ${fadeIn * 0.62})`;
-      ctx.lineWidth = pr * 0.48;
+      ctx.strokeStyle = `rgba(215, 185, 128, ${fadeIn * 0.42})`;
+      ctx.lineWidth = pr * 0.34;
       ctx.stroke();
       ctx.restore();
     }
   });
 
-  // Meteors — 3 independent slots on staggered periods
   const meteorSlots = [
-    { period: 11, seedBase: 3000 },
-    { period: 17, seedBase: 3100 },
-    { period: 23, seedBase: 3200 },
+    { threshold: 14, period: 41, seedBase: 3000 },
+    { threshold: 180, period: 67, seedBase: 3100 },
   ] as const;
 
-  meteorSlots.forEach(({ period, seedBase }) => {
-    const seed = Math.floor(t / period);
-    const phase = (t % period) / period;
-
-    if (phase >= 0.07) {
+  meteorSlots.forEach(({ threshold, period, seedBase }) => {
+    if (days < threshold) {
       return;
     }
 
-    const progress = phase / 0.07;
-    const mx0 = seededRand(seedBase + seed * 4) * width;
-    const my0 = seededRand(seedBase + seed * 4 + 1) * height * 0.55;
-    const angle = 0.14 + seededRand(seedBase + seed * 4 + 2) * 0.28;
-    const len = (95 + seededRand(seedBase + seed * 4 + 3) * 125) * ratio;
+    const seed = Math.floor(t / period);
+    const phase = (t % period) / period;
+
+    if (phase >= 0.045) {
+      return;
+    }
+
+    const progress = phase / 0.045;
+    const mx0 = width * (0.33 + seededRand(seedBase + seed * 4) * 0.48);
+    const my0 = height * (0.2 + seededRand(seedBase + seed * 4 + 1) * 0.42);
+    const angle = 0.05 + seededRand(seedBase + seed * 4 + 2) * 0.18;
+    const len = (85 + seededRand(seedBase + seed * 4 + 3) * 90) * ratio;
 
     const headX = mx0 + Math.cos(angle) * len * progress;
     const headY = my0 + Math.sin(angle) * len * progress;
@@ -673,46 +619,32 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     // Trail
     const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
     trailGrad.addColorStop(0, "rgba(255,255,255,0)");
-    trailGrad.addColorStop(0.6, `rgba(200, 220, 255, ${alpha * 0.45})`);
-    trailGrad.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.92})`);
+    trailGrad.addColorStop(0.6, `rgba(200, 220, 255, ${alpha * 0.3})`);
+    trailGrad.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.72})`);
     ctx.beginPath();
     ctx.moveTo(tailX, tailY);
     ctx.lineTo(headX, headY);
     ctx.strokeStyle = trailGrad;
-    ctx.lineWidth = 1.6 * ratio;
+    ctx.lineWidth = 1.15 * ratio;
     ctx.stroke();
 
-    // Glowing head
     ctx.beginPath();
-    ctx.arc(headX, headY, 2.2 * ratio, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.95})`;
+    ctx.arc(headX, headY, 1.6 * ratio, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.78})`;
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(headX, headY, 5.5 * ratio, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(200, 225, 255, ${alpha * 0.22})`;
+    ctx.arc(headX, headY, 4.4 * ratio, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(200, 225, 255, ${alpha * 0.16})`;
     ctx.fill();
-
-    // Spark particles at head
-    for (let sp = 0; sp < 4; sp += 1) {
-      const sparkAngle = angle + (sp - 1.5) * 0.38 + seededRand(seedBase + seed * 20 + sp) * 0.22;
-      const sparkLen = (7 + seededRand(seedBase + seed * 20 + sp + 10) * 11) * ratio * alpha;
-      ctx.beginPath();
-      ctx.moveTo(headX, headY);
-      ctx.lineTo(headX - Math.cos(sparkAngle) * sparkLen, headY - Math.sin(sparkAngle) * sparkLen);
-      ctx.strokeStyle = `rgba(255, 245, 210, ${alpha * 0.52})`;
-      ctx.lineWidth = 0.75 * ratio;
-      ctx.stroke();
-    }
   });
 
-  // Vignette — focus the eye inward
   const vignette = ctx.createRadialGradient(
     width * 0.5, height * 0.5, Math.min(width, height) * 0.3,
     width * 0.5, height * 0.5, Math.max(width, height) * 0.72
   );
   vignette.addColorStop(0, "rgba(0,0,0,0)");
-  vignette.addColorStop(1, "rgba(0,0,0,0.42)");
+  vignette.addColorStop(1, "rgba(0,0,0,0.34)");
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, width, height);
 }
