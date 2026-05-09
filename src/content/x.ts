@@ -5,6 +5,7 @@ const STYLE_ID = "social-media-feed-remover-x";
 const HIDDEN_ATTRIBUTE = "data-feed-remover-x-hidden";
 
 const DISTRACTING_PRIMARY_NAV_SELECTORS = [
+  "nav[aria-label='Primary']",
   "[data-testid='AppTabBar_Home_Link']",
   "[data-testid='AppTabBar_Explore_Link']",
   "[data-testid='AppTabBar_Notifications_Link']",
@@ -47,16 +48,8 @@ const GLOBAL_DISTRACTION_SELECTORS = [
 ] as const;
 
 const HOME_PAGE_SELECTORS = [
-  "main [aria-label='Home timeline']",
-  "main [aria-label='Timeline: Your Home Timeline']",
-  "main [aria-label*='Home Timeline' i]",
   "main [role='tablist']",
   "main [role='status']",
-  "main [data-testid='tweetTextarea_0']",
-  "main [aria-label='Post text']",
-  "main a[href='/compose/post']",
-  "main button[aria-label='Post']",
-  "main [data-testid='cellInnerDiv']",
   "main [data-testid='cellInnerDiv']:has(article)",
   "main article",
   "main [data-testid='trend']",
@@ -129,6 +122,7 @@ const DISTRACTING_PRIMARY_NAV_LABELS = new Set([
   "home",
   "more",
   "notifications",
+  "profile",
   "premium"
 ]);
 
