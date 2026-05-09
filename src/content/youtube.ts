@@ -189,6 +189,10 @@ function installFeedBlocker(): void {
       display: none !important;
     }
 
+    html[data-feed-remover-focus-mode="true"] ytd-app > #content > #frosted-glass {
+      display: none !important;
+    }
+
     #${CALM_CANVAS_ID} {
       position: fixed;
       top: ${YOUTUBE_MASTHEAD_HEIGHT_PX}px;

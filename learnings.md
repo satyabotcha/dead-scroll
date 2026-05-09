@@ -39,4 +39,4 @@
 
 ### 2026-05-09 YouTube calm canvas offset
 **Context:** YouTube home showed a large empty gap between the masthead and the injected calm canvas.
-**Learning:** The canvas was using an old `148px` top offset that included removed feed/chipbar space. Anchor home canvas visuals to the `56px` masthead height unless the live masthead layout changes.
+**Learning:** The canvas was using an old `148px` top offset that included removed feed/chipbar space, and YouTube can keep a blank `#frosted-glass.with-chipbar` layer above the page after chip content is hidden. Anchor home canvas visuals to the `56px` masthead height and collapse the frosted chipbar layer in focus mode.
