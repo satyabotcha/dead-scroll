@@ -44,3 +44,7 @@
 ### 2026-05-09 Standalone art preview testing
 **Context:** We built a standalone procedural YouTube calm-space art mock for visual testing outside the extension source.
 **Learning:** Browser automation blocks direct `file://` preview and headless Chrome can capture before CDN p5 drawing completes. Serve standalone visual experiments from localhost for reliable preview/testing.
+
+### 2026-05-09 Canvas black hole compositing
+**Context:** We converted the standalone calm-space art from CDN p5 to self-contained Canvas.
+**Learning:** Additive `screen` compositing makes black transparent, so dark objects like an event horizon must be drawn back over the luminous layer with `source-over`. Keep fill and stroke ellipse helpers separate to avoid accidentally flooding lens rings.
