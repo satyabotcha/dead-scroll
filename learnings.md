@@ -40,3 +40,7 @@
 ### 2026-05-09 LinkedIn feed selectors need route and DOM fallbacks
 **Context:** The first LinkedIn blocker worked on an assumed fixture but missed the user's real feed.
 **Learning:** LinkedIn feed classes drift quickly and the logged-in feed can appear from `/` as well as `/feed/`. Hide feed pages by route plus feed-surface signatures like activity URNs, finite-scroll items, impression containers, and actor components.
+
+### 2026-05-09 LinkedIn composer is intentional use
+**Context:** Feed blocking hid the post composer along with feed updates.
+**Learning:** Keep `.share-box-feed-entry`/Start a post available. It is creation, not consumption. Hide update cards and feed rails, but avoid broad feed-page selectors like `main` or `.scaffold-layout__main`.

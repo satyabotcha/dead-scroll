@@ -9,19 +9,20 @@
     const GLOBAL_DISTRACTION_SELECTORS = [
         ".global-nav__primary-item:has(a[href*='/feed/'])",
         ".global-nav__primary-item:has(a[href*='/notifications/'])",
+        ".global-nav__primary-item:has([data-test-global-nav-link='feed'])",
+        ".global-nav__primary-item:has([data-test-global-nav-link='notifications'])",
+        ".global-nav__primary-item:has([aria-label*='Home'])",
+        ".global-nav__primary-item:has([aria-label*='Notifications'])",
         "li:has(> a[href*='/feed/'])",
         "li:has(> a[href*='/notifications/'])",
+        "[data-test-global-nav-link='feed']",
+        "[data-test-global-nav-link='notifications']",
         "a[href*='/feed/'][aria-label*='Home']",
         "a[href*='/notifications/'][aria-label*='Notifications']"
     ];
     const FEED_PAGE_SELECTORS = [
-        "main",
-        "main[role='main']",
-        ".scaffold-layout__main",
-        ".share-box-feed-entry",
         ".feed-shared-update-v2",
         ".fie-impression-container",
-        ".scaffold-finite-scroll",
         "[data-finite-scroll-hotkey-item]",
         "[data-urn*='urn:li:activity']",
         "[data-id*='urn:li:activity']",
