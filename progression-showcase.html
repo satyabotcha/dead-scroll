@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zodiac Target Board</title>
+<title>Zodiac Progression Board</title>
 <style>
   :root {
     color-scheme: dark;
@@ -31,67 +31,92 @@
     display: block;
   }
 
-  #header {
+  #controls {
     position: fixed;
-    top: 22px;
-    left: 28px;
-    right: 28px;
+    top: 14px;
+    left: 16px;
     z-index: 2;
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-    color: var(--ink);
-    pointer-events: none;
+    display: grid;
+    grid-template-columns: auto minmax(120px, 420px) auto auto auto;
+    align-items: center;
+    gap: 10px;
+    width: min(360px, calc(100vw - 32px));
+    padding: 9px 10px;
+    border: 1px solid rgba(220, 230, 255, 0.1);
+    border-radius: 8px;
+    background: rgba(2, 7, 17, 0.64);
+    backdrop-filter: blur(18px);
   }
 
-  #header h1 {
-    margin: 0;
-    font-family: ui-serif, Georgia, "Times New Roman", serif;
-    font-size: clamp(28px, 4vw, 54px);
-    font-weight: 500;
-    line-height: 0.92;
-    letter-spacing: 0;
+  #controls label,
+  #day-count {
+    color: rgba(236, 242, 255, 0.72);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
   }
 
-  #header p {
-    max-width: 380px;
-    margin: 4px 0 0;
-    color: var(--soft);
-    font-size: 12px;
-    line-height: 1.45;
+  #day-count {
+    min-width: 34px;
     text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #day-slider {
+    width: 100%;
+    accent-color: #f5f9ff;
+  }
+
+  #controls button {
+    height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(246, 249, 255, 0.78);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    cursor: pointer;
   }
 
   @media (max-width: 760px) {
-    #header {
-      top: 16px;
-      left: 16px;
-      right: 16px;
-      display: block;
+    #controls {
+      top: 12px;
+      left: 14px;
+      width: min(250px, calc(100vw - 28px));
+      grid-template-columns: auto 1fr auto;
     }
 
-    #header p {
-      max-width: 320px;
-      text-align: left;
+    #controls button {
+      display: none;
     }
   }
 </style>
 </head>
 <body>
 <canvas id="sky"></canvas>
-<header id="header">
-  <h1>Zodiac Target Board</h1>
-  <p>All twelve signs in a 4 x 3 target board as thin white star-forms, so we can judge the final constellation language before building progression.</p>
-</header>
+<div id="controls">
+  <label for="day-slider">Day</label>
+  <input id="day-slider" type="range" min="0" max="30" value="4">
+  <span id="day-count">4</span>
+  <button type="button" data-day="15">15</button>
+  <button type="button" data-day="30">30</button>
+</div>
 
 <script>
 "use strict";
 
 const canvas = document.getElementById("sky");
 const ctx = canvas.getContext("2d");
+const daySlider = document.getElementById("day-slider");
+const dayCount = document.getElementById("day-count");
 let width = 0;
 let height = 0;
 let ratio = 1;
+let day = Number(daySlider.value);
 let startedAt = performance.now();
 
 const WHITE = [245, 249, 255];
@@ -296,9 +321,9 @@ function drawSky(time) {
 
 function getBoardLayout() {
   const cssWidth = width / ratio;
-  const headerSpace = cssWidth < 760 ? 118 * ratio : 104 * ratio;
+  const headerSpace = (cssWidth < 760 ? 58 : 54) * ratio;
   const marginX = (cssWidth < 760 ? 18 : 34) * ratio;
-  const marginBottom = 18 * ratio;
+  const marginBottom = (cssWidth < 760 ? 60 : 66) * ratio;
   const boardY = headerSpace;
   const boardW = Math.min(width - marginX * 2, 360 * ratio);
   const boardH = height - boardY - marginBottom;
@@ -312,7 +337,7 @@ function getBoardLayout() {
     boardX: marginX,
     boardY,
     cellW: boardW / cols,
-    cellH: Math.min(boardH / rows, 96 * ratio)
+    cellH: Math.min(boardH / rows, 112 * ratio)
   };
 }
 
@@ -324,14 +349,21 @@ function pointInCell(point, cell) {
   return [x0 + point[0] * size, y0 + point[1] * size];
 }
 
-function drawCurve(stroke, cell, alpha, widthMul) {
+function ease(value) {
+  const x = Math.min(1, Math.max(0, value));
+  return x * x * (3 - 2 * x);
+}
+
+function drawCurve(stroke, cell, reveal, alpha, widthMul) {
+  if (reveal <= 0) return;
+
   const [p0, p1, p2, p3] = stroke;
   const [r, g, b] = WHITE;
-  const steps = 56;
+  const steps = Math.max(8, Math.floor(56 * reveal));
 
   ctx.beginPath();
   for (let i = 0; i <= steps; i += 1) {
-    const t = i / steps;
+    const t = reveal * (i / steps);
     const x = cubic(p0[0], p1[0], p2[0], p3[0], t);
     const y = cubic(p0[1], p1[1], p2[1], p3[1], t);
     const [sx, sy] = pointInCell([x, y], cell);
@@ -344,6 +376,17 @@ function drawCurve(stroke, cell, alpha, widthMul) {
   ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
   ctx.lineWidth = Math.max(0.55 * ratio, widthMul * ratio);
   ctx.stroke();
+}
+
+function strokeReveal(strokeIndex, strokeCount) {
+  const start = (strokeIndex / Math.max(1, strokeCount)) * 20;
+  const end = start + 8 + (strokeIndex % 3) * 1.6;
+  return ease((day - start) / (end - start));
+}
+
+function anchorReveal(anchorIndex, anchorCount) {
+  const start = (anchorIndex / Math.max(1, anchorCount - 1)) * 21;
+  return ease((day - start) / 6.5);
 }
 
 function drawSign(sign, index, layout, time) {
@@ -359,39 +402,40 @@ function drawSign(sign, index, layout, time) {
   ctx.save();
   ctx.globalCompositeOperation = "screen";
 
-  sign.strokes.forEach((stroke) => {
+  sign.strokes.forEach((stroke, strokeIndex) => {
+    const reveal = strokeReveal(strokeIndex, sign.strokes.length);
+
+    // Keep a barely visible destination trace so the month feels like discovery, not a sudden drawing.
+    drawCurve(stroke, cell, 1, 0.028, stroke[4] * 0.55);
+
     ctx.shadowBlur = 7 * ratio;
     ctx.shadowColor = "rgba(245, 249, 255, 0.26)";
-    drawCurve(stroke, cell, 0.13, stroke[4] * 1.85);
+    drawCurve(stroke, cell, reveal, 0.12 + reveal * 0.08, stroke[4] * 1.2);
     ctx.shadowBlur = 0;
-    drawCurve(stroke, cell, 0.72, stroke[4]);
-    drawCurve(stroke, cell, 0.22, stroke[4] * 0.38);
+    drawCurve(stroke, cell, reveal, 0.22 + reveal * 0.48, stroke[4] * 0.54);
+    drawCurve(stroke, cell, reveal, 0.14 + reveal * 0.12, stroke[4] * 0.2);
   });
 
   sign.anchors.forEach((point, anchorIndex) => {
+    const reveal = anchorReveal(anchorIndex, sign.anchors.length);
+    if (reveal <= 0) return;
+
     const [x, y] = pointInCell(point, cell);
     const pulse = 0.86 + Math.sin(time * 1.2 + index * 0.8 + anchorIndex) * 0.08;
-    const starSize = (0.65 + seeded(index * 80 + anchorIndex) * 0.62) * ratio;
+    const starSize = (0.55 + seeded(index * 80 + anchorIndex) * 0.54) * ratio * reveal;
 
     ctx.beginPath();
     ctx.arc(x, y, starSize * 3.6, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(245, 249, 255, 0.035)";
+    ctx.fillStyle = `rgba(245, 249, 255, ${0.026 * reveal})`;
     ctx.fill();
 
     ctx.beginPath();
     ctx.arc(x, y, starSize * pulse, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.86)";
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.18 + reveal * 0.7})`;
     ctx.fill();
   });
 
   ctx.restore();
-
-  ctx.font = `${11 * ratio}px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "rgba(228, 236, 255, 0.52)";
-  ctx.letterSpacing = "0";
-  ctx.fillText(sign.name.toUpperCase(), cell.x + cell.w * 0.5, cell.y + cell.h - 12 * ratio);
 }
 
 function drawBoard(time) {
@@ -410,6 +454,19 @@ function render() {
 }
 
 addEventListener("resize", resize);
+daySlider.addEventListener("input", () => {
+  day = Number(daySlider.value);
+  dayCount.textContent = String(day);
+});
+
+document.querySelectorAll("#controls button").forEach((button) => {
+  button.addEventListener("click", () => {
+    day = Number(button.dataset.day);
+    daySlider.value = String(day);
+    dayCount.textContent = String(day);
+  });
+});
+
 resize();
 render();
 </script>
