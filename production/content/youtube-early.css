@@ -1,0 +1,7 @@
+/* Runs at document_start — before YouTube paints anything.
+   Sets the page background to near-black immediately so the user
+   never sees the white flash while YouTube's dark-mode CSS loads. */
+html,
+body {
+  background-color: #0a0a0a !important;
+}

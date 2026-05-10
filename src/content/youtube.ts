@@ -86,9 +86,6 @@ const STYLE_ID = "social-media-feed-remover-youtube";
 const LEGACY_VISUAL_SHELL_ID = "monk-mode-visual-shell";
 const CALM_CANVAS_ID = "feed-remover-calm-canvas";
 const YOUTUBE_SETTINGS_KEY = "focusMode";
-const CONSTELLATION_PREVIEW_KEY = "constellationPreviewDays";
-const CONSTELLATION_FOCUS_DAYS_KEY = "constellationFocusDays";
-const CONSTELLATION_LAST_DATE_KEY = "constellationLastDate";
 const CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO = 2;
 const CALM_CANVAS_FRAME_INTERVAL_MS = 1000 / 24;
 const YOUTUBE_MASTHEAD_HEIGHT_PX = 56;
@@ -130,6 +127,7 @@ const SEARCH_SHORTS_FILTER_SELECTOR = [
 let bgImageLoaded = false;
 let calmCanvasShell: HTMLDivElement | null = null;
 let autoplayWasDisabledByFocusMode = false;
+let theaterModeAppliedForUrl = "";
 let lastAutoplayToggleClickAt = 0;
 let adWasBeingSpedThrough = false;
 let playbackRateBeforeAd = 1;
@@ -137,7 +135,6 @@ let mutedBeforeAd = false;
 let calmCanvasAnimationFrame = 0;
 let calmCanvasResizeObserver: ResizeObserver | null = null;
 let calmCanvasLastFrameAt = 0;
-let effectiveStarCount = 0;
 
 function installFeedBlocker(): void {
   const existingStyle = document.getElementById(STYLE_ID);
@@ -259,6 +256,37 @@ function removeLegacyVisualShell(): void {
 
 function isYouTubeHomeRoute(): boolean {
   return location.pathname === "/";
+}
+
+function isYouTubeWatchRoute(): boolean {
+  return location.pathname === "/watch";
+}
+
+// Silently enables theater mode on watch pages so the video fills the full
+// width and the empty sidebar void disappears. YouTube remembers the choice
+// across sessions, so this only needs to fire once per URL.
+function tryEnableTheaterMode(): void {
+  if (!isYouTubeWatchRoute()) {
+    theaterModeAppliedForUrl = "";
+    return;
+  }
+
+  const currentUrl = location.href;
+  if (theaterModeAppliedForUrl === currentUrl) return;
+
+  // If YouTube already entered theater mode (e.g. from its own saved pref),
+  // just record the URL so we don't redundantly click the button.
+  const watchEl = document.querySelector("ytd-watch-flexy");
+  if (watchEl?.hasAttribute("theater")) {
+    theaterModeAppliedForUrl = currentUrl;
+    return;
+  }
+
+  const btn = document.querySelector<HTMLButtonElement>(".ytp-size-button");
+  if (btn) {
+    btn.click();
+    theaterModeAppliedForUrl = currentUrl;
+  }
 }
 
 function removeCalmCanvas(): void {
@@ -498,23 +526,6 @@ function ensureCalmCanvas(focusMode: boolean): void {
   startCalmCanvas(canvas);
 }
 
-function trackFocusDay(): void {
-  const today = new Date().toISOString().slice(0, 10);
-
-  chrome.storage.local.get([CONSTELLATION_FOCUS_DAYS_KEY, CONSTELLATION_LAST_DATE_KEY], (result) => {
-    if (result[CONSTELLATION_LAST_DATE_KEY] === today) {
-      return;
-    }
-
-    const newCount = ((result[CONSTELLATION_FOCUS_DAYS_KEY] as number | undefined) ?? 0) + 1;
-
-    chrome.storage.local.set({
-      [CONSTELLATION_FOCUS_DAYS_KEY]: newCount,
-      [CONSTELLATION_LAST_DATE_KEY]: today,
-    });
-  });
-}
-
 function loadBgImage(): void {
   const url = chrome.runtime.getURL("assets/universe_background.png");
   const img = new Image();
@@ -529,15 +540,6 @@ function loadBgImage(): void {
   };
 }
 
-function loadConstellationStarCount(): void {
-  chrome.storage.local.get([CONSTELLATION_PREVIEW_KEY, CONSTELLATION_FOCUS_DAYS_KEY], (result) => {
-    const preview = result[CONSTELLATION_PREVIEW_KEY];
-    const real = (result[CONSTELLATION_FOCUS_DAYS_KEY] as number | undefined) ?? 0;
-
-    effectiveStarCount = typeof preview === "number" ? preview : real;
-  });
-}
-
 function setFocusMode(focusMode: boolean): void {
   document.documentElement.dataset.feedRemoverFocusMode = String(focusMode);
   removeLegacyVisualShell();
@@ -545,10 +547,6 @@ function setFocusMode(focusMode: boolean): void {
   applyShortsFilter(focusMode);
   syncAutoplayMode(focusMode);
   processPlayerAds(focusMode);
-
-  if (focusMode) {
-    trackFocusDay();
-  }
 }
 
 function showPreviouslyHiddenShorts(): void {
@@ -724,22 +722,26 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "sync" && YOUTUBE_SETTINGS_KEY in changes) {
     setFocusMode(changes[YOUTUBE_SETTINGS_KEY].newValue !== false);
   }
-
-  if (areaName === "local" && (CONSTELLATION_PREVIEW_KEY in changes || CONSTELLATION_FOCUS_DAYS_KEY in changes)) {
-    loadConstellationStarCount();
-  }
 });
 
-// Force YouTube's own dark-mode CSS by setting the html[dark] attribute.
-// This activates YouTube's built-in dark palette for every element
-// (dropdowns, panels, text, icons) without needing to override each one.
-document.documentElement.setAttribute("dark", "");
+// youtube-dark.ts (document_start) stamps html[dark] before first paint.
+// This observer re-stamps it if YouTube's own initialisation removes it
+// (which happens when the account preference is "Light" or "Device theme").
+const darkAttributeObserver = new MutationObserver(() => {
+  if (!document.documentElement.hasAttribute("dark")) {
+    document.documentElement.setAttribute("dark", "");
+  }
+});
+darkAttributeObserver.observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ["dark"],
+});
 
 setFocusMode(YOUTUBE_DEFAULT_FOCUS_MODE);
 installFeedBlocker();
 loadSettings();
-loadConstellationStarCount();
 loadBgImage();
+tryEnableTheaterMode();
 
 const observer = new MutationObserver(() => {
   const focusMode = document.documentElement.dataset.feedRemoverFocusMode === "true";
@@ -749,9 +751,10 @@ const observer = new MutationObserver(() => {
   applyShortsFilter(focusMode);
   syncAutoplayMode(focusMode);
   processPlayerAds(focusMode);
+  tryEnableTheaterMode();
 });
 
 observer.observe(document.documentElement, {
   childList: true,
-  subtree: true
+  subtree: true,
 });

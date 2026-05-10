@@ -80,10 +80,7 @@ const STYLE_ID = "social-media-feed-remover-youtube";
 const LEGACY_VISUAL_SHELL_ID = "monk-mode-visual-shell";
 const CALM_CANVAS_ID = "feed-remover-calm-canvas";
 const YOUTUBE_SETTINGS_KEY = "focusMode";
-const CONSTELLATION_PREVIEW_KEY = "constellationPreviewDays";
-const CONSTELLATION_FOCUS_DAYS_KEY = "constellationFocusDays";
-const CONSTELLATION_LAST_DATE_KEY = "constellationLastDate";
-const CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO = 1.5;
+const CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO = 2;
 const CALM_CANVAS_FRAME_INTERVAL_MS = 1000 / 24;
 const YOUTUBE_MASTHEAD_HEIGHT_PX = 56;
 const YOUTUBE_DEFAULT_FOCUS_MODE = true;
@@ -121,7 +118,10 @@ const SEARCH_SHORTS_FILTER_SELECTOR = [
     "tp-yt-paper-tab",
     "[role='tab']"
 ].join(",");
+let bgImageLoaded = false;
+let calmCanvasShell = null;
 let autoplayWasDisabledByFocusMode = false;
+let theaterModeAppliedForUrl = "";
 let lastAutoplayToggleClickAt = 0;
 let adWasBeingSpedThrough = false;
 let playbackRateBeforeAd = 1;
@@ -129,10 +129,6 @@ let mutedBeforeAd = false;
 let calmCanvasAnimationFrame = 0;
 let calmCanvasResizeObserver = null;
 let calmCanvasLastFrameAt = 0;
-let effectiveStarCount = 0;
-let cachedGeometryCount = -1;
-let cachedStars = [];
-let cachedEdges = [];
 function installFeedBlocker() {
     const existingStyle = document.getElementById(STYLE_ID);
     const style = existingStyle ?? document.createElement("style");
@@ -171,6 +167,27 @@ function installFeedBlocker() {
       display: none !important;
     }
 
+    /* ── Dark mode ────────────────────────────────────────────────────────── */
+    /* Force near-black backgrounds on every page so the whole experience     */
+    /* feels consistent — no jarring white flash when navigating.             */
+    html[data-feed-remover-focus-mode="true"] ytd-app,
+    html[data-feed-remover-focus-mode="true"] #page-manager,
+    html[data-feed-remover-focus-mode="true"] ytd-browse,
+    html[data-feed-remover-focus-mode="true"] ytd-search,
+    html[data-feed-remover-focus-mode="true"] ytd-watch-flexy,
+    html[data-feed-remover-focus-mode="true"] #below,
+    html[data-feed-remover-focus-mode="true"] #secondary,
+    html[data-feed-remover-focus-mode="true"] ytd-comments,
+    html[data-feed-remover-focus-mode="true"] #masthead-container {
+      background-color: #0a0a0a !important;
+    }
+
+    /* Watch page: the column holding the player and metadata */
+    html[data-feed-remover-focus-mode="true"] #primary,
+    html[data-feed-remover-focus-mode="true"] #primary-inner {
+      background-color: #0a0a0a !important;
+    }
+
     #${CALM_CANVAS_ID} {
       position: fixed;
       top: ${YOUTUBE_MASTHEAD_HEIGHT_PX}px;
@@ -180,7 +197,21 @@ function installFeedBlocker() {
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
-      background: #060a14;
+      background-color: #060a14;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: 62% 52%;
+    }
+
+    /* Gradient fade from masthead into the wallpaper — no hard edge */
+    #${CALM_CANVAS_ID}::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      height: 72px;
+      background: linear-gradient(to bottom, #0a0a0a 0%, transparent 100%);
+      z-index: 2;
+      pointer-events: none;
     }
 
     #${CALM_CANVAS_ID} canvas {
@@ -188,6 +219,7 @@ function installFeedBlocker() {
       width: 100%;
       height: 100%;
     }
+
   `;
     if (!existingStyle) {
         document.documentElement.append(style);
@@ -200,6 +232,33 @@ function removeLegacyVisualShell() {
 function isYouTubeHomeRoute() {
     return location.pathname === "/";
 }
+function isYouTubeWatchRoute() {
+    return location.pathname === "/watch";
+}
+// Silently enables theater mode on watch pages so the video fills the full
+// width and the empty sidebar void disappears. YouTube remembers the choice
+// across sessions, so this only needs to fire once per URL.
+function tryEnableTheaterMode() {
+    if (!isYouTubeWatchRoute()) {
+        theaterModeAppliedForUrl = "";
+        return;
+    }
+    const currentUrl = location.href;
+    if (theaterModeAppliedForUrl === currentUrl)
+        return;
+    // If YouTube already entered theater mode (e.g. from its own saved pref),
+    // just record the URL so we don't redundantly click the button.
+    const watchEl = document.querySelector("ytd-watch-flexy");
+    if (watchEl?.hasAttribute("theater")) {
+        theaterModeAppliedForUrl = currentUrl;
+        return;
+    }
+    const btn = document.querySelector(".ytp-size-button");
+    if (btn) {
+        btn.click();
+        theaterModeAppliedForUrl = currentUrl;
+    }
+}
 function removeCalmCanvas() {
     if (calmCanvasAnimationFrame) {
         cancelAnimationFrame(calmCanvasAnimationFrame);
@@ -208,6 +267,7 @@ function removeCalmCanvas() {
     calmCanvasResizeObserver?.disconnect();
     calmCanvasResizeObserver = null;
     calmCanvasLastFrameAt = 0;
+    calmCanvasShell = null;
     document.getElementById(CALM_CANVAS_ID)?.remove();
 }
 function resizeCalmCanvas(canvas) {
@@ -223,55 +283,6 @@ function seededRand(seed) {
     const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
     return x - Math.floor(x);
 }
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-}
-function smoothstep(edge0, edge1, value) {
-    const x = clamp((value - edge0) / (edge1 - edge0), 0, 1);
-    return x * x * (3 - 2 * x);
-}
-function getVisibleConstellationStarCount(days) {
-    const progress = clamp(days, 0, 365) / 365;
-    // Keep the first days sparse and sacred; fullness should arrive as depth, not visual noise.
-    return Math.round(4 + 156 * Math.pow(progress, 0.82));
-}
-function buildConstellationGeometry(count) {
-    if (count === cachedGeometryCount) {
-        return;
-    }
-    cachedGeometryCount = count;
-    cachedStars = Array.from({ length: count }, (_, i) => ({
-        x: seededRand(i * 4),
-        y: seededRand(i * 4 + 1),
-        b: 0.35 + seededRand(i * 4 + 2) * 0.65,
-        s: 0.4 + seededRand(i * 4 + 3) * 1.2,
-    }));
-    cachedEdges = [];
-    const THRESHOLD = 0.14;
-    cachedStars.forEach((star, i) => {
-        const neighbors = [];
-        cachedStars.forEach((other, j) => {
-            if (j <= i) {
-                return;
-            }
-            const dx = star.x - other.x;
-            const dy = star.y - other.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < THRESHOLD) {
-                neighbors.push({ j, dist });
-            }
-        });
-        neighbors
-            .sort((a, b) => a.dist - b.dist)
-            .slice(0, 2)
-            .forEach(({ j, dist }) => {
-            const shouldConnect = seededRand(i * 97 + j * 13) > 0.24;
-            if (shouldConnect) {
-                cachedEdges.push({ i, j, a: (1 - dist / THRESHOLD) * 0.22 });
-            }
-        });
-    });
-}
 function drawCalmCanvas(canvas, timestamp) {
     const ctx = canvas.getContext("2d");
     if (!ctx) {
@@ -281,105 +292,60 @@ function drawCalmCanvas(canvas, timestamp) {
     const { width, height } = canvas;
     const ratio = Math.min(window.devicePixelRatio || 1, CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO);
     const t = timestamp / 1000;
-    const days = clamp(effectiveStarCount, 0, 365);
-    const habitProgress = smoothstep(0, 365, days);
-    const starCount = getVisibleConstellationStarCount(days);
-    const constellationProgress = smoothstep(1, 120, days);
-    const nebulaDepth = 0.018 + smoothstep(7, 365, days) * 0.075;
     ctx.clearRect(0, 0, width, height);
-    const bg = ctx.createLinearGradient(0, 0, width, height);
-    bg.addColorStop(0, "#02050d");
-    bg.addColorStop(0.42, "#030816");
-    bg.addColorStop(0.72, "#020611");
-    bg.addColorStop(1, "#01030a");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, width, height);
-    const nebulae = [
-        { nx: 0.72, ny: 0.34, r: 0.36, rgb: "34, 108, 155", phase: 1.7, base: 0.72 },
-        { nx: 0.2, ny: 0.55, r: 0.38, rgb: "54, 60, 155", phase: 0.2, base: 0.74 },
-        { nx: 0.51, ny: 0.82, r: 0.29, rgb: "132, 42, 92", phase: 3.4, base: 0.45 },
-        { nx: 0.47, ny: 0.4, r: 0.26, rgb: "38, 70, 130", phase: 5.1, base: 0.36 },
-    ];
-    nebulae.forEach(({ nx, ny, r, rgb, phase, base }) => {
-        const pulse = 1 + Math.sin(t * 0.055 + phase) * 0.055;
-        const cx = width * nx + Math.sin(t * 0.012 + phase) * 9 * ratio;
-        const cy = height * ny + Math.cos(t * 0.01 + phase) * 7 * ratio;
-        const opacity = nebulaDepth * base * pulse;
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * Math.min(width, height));
-        grad.addColorStop(0, `rgba(${rgb}, ${opacity})`);
-        grad.addColorStop(0.42, `rgba(${rgb}, ${opacity * 0.34})`);
-        grad.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = grad;
+    // ── Background ───────────────────────────────────────────────────────────
+    // The image is rendered via CSS background-image on the shell div, which
+    // gives native DPR quality (no canvas scaling artifacts). We just nudge
+    // background-position each frame for parallax, then draw a darkening
+    // overlay on the canvas so the animation layers stay readable.
+    if (bgImageLoaded && calmCanvasShell) {
+        const driftX = Math.sin(t * 0.042) * 0.55; // percent — ~8px on a 1440px viewport
+        const driftY = Math.cos(t * 0.031) * 0.40;
+        calmCanvasShell.style.backgroundPosition = `${62 + driftX}% ${52 + driftY}%`;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
         ctx.fillRect(0, 0, width, height);
-    });
-    const dustCount = Math.round(45 + habitProgress * 80);
-    for (let i = 0; i < dustCount; i += 1) {
-        const dx = seededRand(5000 + i * 4) * width;
-        const dy = seededRand(5001 + i * 4) * height;
-        const da = (0.018 + seededRand(5002 + i * 4) * 0.06) * (0.6 + habitProgress * 0.34);
-        const ds = (0.24 + seededRand(5003 + i * 4) * 0.46) * ratio;
-        ctx.beginPath();
-        ctx.arc(dx, dy, ds, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(195, 215, 255, ${da})`;
-        ctx.fill();
     }
-    buildConstellationGeometry(starCount);
-    cachedEdges.forEach(({ i, j, a }) => {
-        const sa = cachedStars[i];
-        const sb = cachedStars[j];
-        const alpha = a * (0.1 + constellationProgress * 0.72);
-        ctx.beginPath();
-        ctx.moveTo(sa.x * width, sa.y * height);
-        ctx.lineTo(sb.x * width, sb.y * height);
-        ctx.strokeStyle = `rgba(110, 152, 218, ${alpha})`;
-        ctx.lineWidth = 0.4 * ratio;
-        ctx.stroke();
-    });
-    cachedStars.forEach((star, i) => {
-        const tw = Math.sin(t * (0.055 + star.s * 0.052) + i * 2.3) * 0.075;
-        const twinkle = 0.86 + tw;
-        const alpha = (0.2 + star.b * 0.68) * twinkle * (0.68 + constellationProgress * 0.32);
-        const parallax = (seededRand(i * 4 + 6) - 0.5) * 5 * ratio;
-        const sx = star.x * width + Math.sin(t * 0.008 + i) * parallax;
-        const sy = star.y * height + Math.cos(t * 0.007 + i * 0.7) * parallax;
-        const size = (0.46 + star.b * 1.05) * ratio;
-        const temp = seededRand(i * 4 + 5);
-        const sr = Math.round(246 - temp * 18);
-        const sg = Math.round(246 - temp * 2);
-        const sb2 = Math.round(225 + temp * 26);
-        if (star.b > 0.55) {
-            ctx.beginPath();
-            ctx.arc(sx, sy, size * (4.8 + habitProgress * 1.8), 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha * 0.065})`;
-            ctx.fill();
-        }
-        ctx.beginPath();
-        ctx.arc(sx, sy, size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${sr}, ${sg}, ${sb2}, ${alpha})`;
-        ctx.fill();
-    });
-    const showerPeriod = 15;
-    const showerSeed = Math.floor(t / showerPeriod);
-    const showerPhase = (t % showerPeriod) / showerPeriod;
-    if (showerPhase < 0.18) {
-        for (let meteor = 0; meteor < 4; meteor += 1) {
-            const localPhase = showerPhase * 5.6 - meteor * 0.2;
-            if (localPhase < 0 || localPhase > 1) {
-                continue;
-            }
-            const seedBase = 3000 + meteor * 120;
-            const progress = localPhase;
-            const mx0 = width * (0.08 + seededRand(seedBase + showerSeed * 5) * 0.82);
-            const my0 = height * (0.04 + seededRand(seedBase + showerSeed * 5 + 1) * 0.54);
-            const angle = 0.12 + seededRand(seedBase + showerSeed * 5 + 2) * 0.23;
-            const len = (115 + seededRand(seedBase + showerSeed * 5 + 3) * 145) * ratio;
-            const speed = 0.82 + seededRand(seedBase + showerSeed * 5 + 4) * 0.36;
+    // ── Accretion disk pulse ─────────────────────────────────────────────────
+    // Warm orange-gold ring breathes around the black hole (~12-second cycle).
+    // The inner gradient is transparent so the dark core stays dark.
+    if (bgImageLoaded) {
+        const bhX = width * 0.625;
+        const bhY = height * 0.415;
+        const bhMin = Math.min(width, height);
+        const bhWave = Math.sin(t * 0.52) * 0.5 + 0.5; // 0 → 1, period ~12 s
+        const bhAlpha = 0.065 + bhWave * 0.045;
+        const bhGrad = ctx.createRadialGradient(bhX, bhY, bhMin * 0.034, bhX, bhY, bhMin * 0.21);
+        bhGrad.addColorStop(0, "rgba(0,0,0,0)");
+        bhGrad.addColorStop(0.22, `rgba(225, 145, 55, ${bhAlpha * 0.7})`);
+        bhGrad.addColorStop(0.42, `rgba(205, 105, 30, ${bhAlpha})`);
+        bhGrad.addColorStop(0.68, `rgba(155,  70, 20, ${bhAlpha * 0.35})`);
+        bhGrad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = bhGrad;
+        ctx.fillRect(0, 0, width, height);
+    }
+    // ── Meteors ──────────────────────────────────────────────────────────────
+    // All meteors originate from the upper-left zone (x: 2–50%, y: 2–28%) so
+    // they cross the sky above/around the black hole rather than through it.
+    // Alpha = sin(π·progress) — smooth fade-in and fade-out, no hard cuts.
+    // One regular meteor every ~35 s — infrequent enough to feel like a moment
+    {
+        const period = 35;
+        const activeFrac = 0.13;
+        const seed = Math.floor(t / period);
+        const phase = (t % period) / period;
+        if (phase <= activeFrac) {
+            const progress = phase / activeFrac;
+            const alpha = Math.sin(progress * Math.PI);
+            const mx0 = width * (0.02 + seededRand(3000 + seed * 5) * 0.48); // left half
+            const my0 = height * (0.02 + seededRand(3001 + seed * 5 + 1) * 0.26); // upper quarter
+            const angle = 0.12 + seededRand(3002 + seed * 5 + 2) * 0.23;
+            const len = (110 + seededRand(3003 + seed * 5 + 3) * 70) * ratio; // tighter range
+            const speed = 0.52 + seededRand(3004 + seed * 5 + 4) * 0.08; // slow, consistent
             const headX = mx0 + Math.cos(angle) * len * progress * speed;
             const headY = my0 + Math.sin(angle) * len * progress * speed;
             const trailFrac = Math.min(progress * 1.8, 1) * 0.54;
             const tailX = headX - Math.cos(angle) * len * trailFrac;
             const tailY = headY - Math.sin(angle) * len * trailFrac;
-            const alpha = progress < 0.42 ? progress / 0.42 : (1 - progress) / 0.58;
             const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
             trailGrad.addColorStop(0, "rgba(255,255,255,0)");
             trailGrad.addColorStop(0.58, `rgba(185, 212, 255, ${alpha * 0.32})`);
@@ -388,7 +354,7 @@ function drawCalmCanvas(canvas, timestamp) {
             ctx.moveTo(tailX, tailY);
             ctx.lineTo(headX, headY);
             ctx.strokeStyle = trailGrad;
-            ctx.lineWidth = (0.8 + meteor * 0.11) * ratio;
+            ctx.lineWidth = 0.9 * ratio;
             ctx.stroke();
             ctx.beginPath();
             ctx.arc(headX, headY, 1.35 * ratio, 0, Math.PI * 2);
@@ -400,21 +366,24 @@ function drawCalmCanvas(canvas, timestamp) {
             ctx.fill();
         }
     }
-    const rareLongMeteorPeriod = 45;
-    const rareLongMeteorPhase = (t % rareLongMeteorPeriod) / rareLongMeteorPeriod;
-    if (rareLongMeteorPhase < 0.045) {
-        const rareSeed = Math.floor(t / rareLongMeteorPeriod);
-        const progress = rareLongMeteorPhase / 0.045;
-        if (progress >= 0 && progress <= 1) {
-            const mx0 = width * (0.16 + seededRand(4200 + rareSeed * 4) * 0.55);
-            const my0 = height * (0.12 + seededRand(4201 + rareSeed * 4) * 0.36);
+    // ── Rare long meteors (2) ────────────────────────────────────────────────
+    // Dramatic, slower, longer — also start from the upper-left zone.
+    { // Rare #1 — ~65s cycle
+        const period = 65;
+        const activeFrac = 0.042;
+        const rareSeed = Math.floor(t / period);
+        const phase = (t % period) / period;
+        if (phase <= activeFrac) {
+            const progress = phase / activeFrac;
+            const alpha = Math.sin(progress * Math.PI);
+            const mx0 = width * (0.02 + seededRand(4200 + rareSeed * 4) * 0.44);
+            const my0 = height * (0.02 + seededRand(4201 + rareSeed * 4) * 0.24);
             const angle = 0.06 + seededRand(4202 + rareSeed * 4) * 0.13;
             const len = (190 + seededRand(4203 + rareSeed * 4) * 160) * ratio;
             const headX = mx0 + Math.cos(angle) * len * progress;
             const headY = my0 + Math.sin(angle) * len * progress;
             const tailX = headX - Math.cos(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
             const tailY = headY - Math.sin(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
-            const alpha = progress < 0.45 ? progress / 0.45 : (1 - progress) / 0.55;
             const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
             trailGrad.addColorStop(0, "rgba(255,255,255,0)");
             trailGrad.addColorStop(0.48, `rgba(170, 205, 255, ${alpha * 0.34})`);
@@ -431,9 +400,43 @@ function drawCalmCanvas(canvas, timestamp) {
             ctx.fill();
         }
     }
+    { // Rare #2 — ~90s cycle, offset so the two rares never coincide
+        const period = 90;
+        const activeFrac = 0.038;
+        const tOff = t + 38;
+        const rareSeed = Math.floor(tOff / period);
+        const phase = (tOff % period) / period;
+        if (phase <= activeFrac) {
+            const progress = phase / activeFrac;
+            const alpha = Math.sin(progress * Math.PI);
+            const mx0 = width * (0.02 + seededRand(4800 + rareSeed * 4) * 0.44);
+            const my0 = height * (0.02 + seededRand(4801 + rareSeed * 4) * 0.24);
+            const angle = 0.06 + seededRand(4802 + rareSeed * 4) * 0.13;
+            const len = (190 + seededRand(4803 + rareSeed * 4) * 160) * ratio;
+            const headX = mx0 + Math.cos(angle) * len * progress;
+            const headY = my0 + Math.sin(angle) * len * progress;
+            const tailX = headX - Math.cos(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
+            const tailY = headY - Math.sin(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
+            const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
+            trailGrad.addColorStop(0, "rgba(255,255,255,0)");
+            trailGrad.addColorStop(0.48, `rgba(170, 205, 255, ${alpha * 0.34})`);
+            trailGrad.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.86})`);
+            ctx.beginPath();
+            ctx.moveTo(tailX, tailY);
+            ctx.lineTo(headX, headY);
+            ctx.strokeStyle = trailGrad;
+            ctx.lineWidth = 1.25 * ratio;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(headX, headY, 1.9 * ratio, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.86})`;
+            ctx.fill();
+        }
+    }
+    // ── Vignette ─────────────────────────────────────────────────────────────
     const vignette = ctx.createRadialGradient(width * 0.5, height * 0.5, Math.min(width, height) * 0.3, width * 0.5, height * 0.5, Math.max(width, height) * 0.72);
     vignette.addColorStop(0, "rgba(0,0,0,0)");
-    vignette.addColorStop(1, "rgba(0,0,0,0.48)");
+    vignette.addColorStop(1, "rgba(0,0,0,0.52)");
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
 }
@@ -470,29 +473,27 @@ function ensureCalmCanvas(focusMode) {
     shell.setAttribute("aria-hidden", "true");
     shell.append(canvas);
     document.body.append(shell);
+    calmCanvasShell = shell;
+    // If the image already loaded before this canvas was created, apply it now
+    if (bgImageLoaded) {
+        shell.style.backgroundImage = `url("${chrome.runtime.getURL("assets/universe_background.png")}")`;
+    }
     calmCanvasResizeObserver = new ResizeObserver(() => resizeCalmCanvas(canvas));
     calmCanvasResizeObserver.observe(shell);
     startCalmCanvas(canvas);
 }
-function trackFocusDay() {
-    const today = new Date().toISOString().slice(0, 10);
-    chrome.storage.local.get([CONSTELLATION_FOCUS_DAYS_KEY, CONSTELLATION_LAST_DATE_KEY], (result) => {
-        if (result[CONSTELLATION_LAST_DATE_KEY] === today) {
-            return;
+function loadBgImage() {
+    const url = chrome.runtime.getURL("assets/universe_background.png");
+    const img = new Image();
+    img.src = url;
+    img.onload = () => {
+        bgImageLoaded = true;
+        // Set background-image on the shell so the browser renders it at native
+        // DPR quality — far sharper than canvas drawImage scaling.
+        if (calmCanvasShell) {
+            calmCanvasShell.style.backgroundImage = `url("${url}")`;
         }
-        const newCount = (result[CONSTELLATION_FOCUS_DAYS_KEY] ?? 0) + 1;
-        chrome.storage.local.set({
-            [CONSTELLATION_FOCUS_DAYS_KEY]: newCount,
-            [CONSTELLATION_LAST_DATE_KEY]: today,
-        });
-    });
-}
-function loadConstellationStarCount() {
-    chrome.storage.local.get([CONSTELLATION_PREVIEW_KEY, CONSTELLATION_FOCUS_DAYS_KEY], (result) => {
-        const preview = result[CONSTELLATION_PREVIEW_KEY];
-        const real = result[CONSTELLATION_FOCUS_DAYS_KEY] ?? 0;
-        effectiveStarCount = typeof preview === "number" ? preview : real;
-    });
+    };
 }
 function setFocusMode(focusMode) {
     document.documentElement.dataset.feedRemoverFocusMode = String(focusMode);
@@ -501,9 +502,6 @@ function setFocusMode(focusMode) {
     applyShortsFilter(focusMode);
     syncAutoplayMode(focusMode);
     processPlayerAds(focusMode);
-    if (focusMode) {
-        trackFocusDay();
-    }
 }
 function showPreviouslyHiddenShorts() {
     document.querySelectorAll(`[${SHORTS_HIDDEN_ATTRIBUTE}="true"]`).forEach((element) => {
@@ -640,14 +638,24 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "sync" && YOUTUBE_SETTINGS_KEY in changes) {
         setFocusMode(changes[YOUTUBE_SETTINGS_KEY].newValue !== false);
     }
-    if (areaName === "local" && (CONSTELLATION_PREVIEW_KEY in changes || CONSTELLATION_FOCUS_DAYS_KEY in changes)) {
-        loadConstellationStarCount();
+});
+// youtube-dark.ts (document_start) stamps html[dark] before first paint.
+// This observer re-stamps it if YouTube's own initialisation removes it
+// (which happens when the account preference is "Light" or "Device theme").
+const darkAttributeObserver = new MutationObserver(() => {
+    if (!document.documentElement.hasAttribute("dark")) {
+        document.documentElement.setAttribute("dark", "");
     }
+});
+darkAttributeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["dark"],
 });
 setFocusMode(YOUTUBE_DEFAULT_FOCUS_MODE);
 installFeedBlocker();
 loadSettings();
-loadConstellationStarCount();
+loadBgImage();
+tryEnableTheaterMode();
 const observer = new MutationObserver(() => {
     const focusMode = document.documentElement.dataset.feedRemoverFocusMode === "true";
     removeLegacyVisualShell();
@@ -655,8 +663,9 @@ const observer = new MutationObserver(() => {
     applyShortsFilter(focusMode);
     syncAutoplayMode(focusMode);
     processPlayerAds(focusMode);
+    tryEnableTheaterMode();
 });
 observer.observe(document.documentElement, {
     childList: true,
-    subtree: true
+    subtree: true,
 });

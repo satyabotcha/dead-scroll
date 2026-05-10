@@ -17,6 +17,12 @@
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],
+      "css": ["content/youtube-early.css"],
+      "js": ["content/youtube-dark.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.youtube.com/*"],
       "js": ["content/youtube.js"],
       "run_at": "document_idle"
     },
