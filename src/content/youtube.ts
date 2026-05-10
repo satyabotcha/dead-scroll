@@ -322,8 +322,8 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
       const mx0   = width  * (0.02 + seededRand(3000 + seed * 5)     * 0.48); // left half
       const my0   = height * (0.02 + seededRand(3001 + seed * 5 + 1) * 0.26); // upper quarter
       const angle = 0.12   + seededRand(3002 + seed * 5 + 2) * 0.23;
-      const len   = (115   + seededRand(3003 + seed * 5 + 3) * 145) * ratio;
-      const speed = 0.82   + seededRand(3004 + seed * 5 + 4) * 0.36;
+      const len   = (110   + seededRand(3003 + seed * 5 + 3) * 70) * ratio; // tighter range
+      const speed = 0.52   + seededRand(3004 + seed * 5 + 4) * 0.08; // slow, consistent
       const headX     = mx0 + Math.cos(angle) * len * progress * speed;
       const headY     = my0 + Math.sin(angle) * len * progress * speed;
       const trailFrac = Math.min(progress * 1.8, 1) * 0.54;
