@@ -228,10 +228,43 @@ function installFeedBlocker(): void {
       background-position: 62% 52%;
     }
 
+    /* Gradient fade from masthead into the wallpaper — no hard edge */
+    #${CALM_CANVAS_ID}::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      height: 160px;
+      background: linear-gradient(to bottom, #0a0a0a 0%, transparent 100%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
     #${CALM_CANVAS_ID} canvas {
       display: block;
       width: 100%;
       height: 100%;
+    }
+
+    /* ── Search bar ───────────────────────────────────────────────────────── */
+    /* YouTube dark-mode search bar can look mismatched — make it subtle      */
+    html[data-feed-remover-focus-mode="true"] ytd-searchbox #search-input {
+      background-color: rgba(255, 255, 255, 0.07) !important;
+      border-color: rgba(255, 255, 255, 0.12) !important;
+      box-shadow: none !important;
+    }
+
+    html[data-feed-remover-focus-mode="true"] ytd-searchbox #search-input:focus-within {
+      background-color: rgba(255, 255, 255, 0.10) !important;
+      border-color: rgba(255, 255, 255, 0.30) !important;
+    }
+
+    html[data-feed-remover-focus-mode="true"] ytd-searchbox #search {
+      color: #e8e8e8 !important;
+    }
+
+    html[data-feed-remover-focus-mode="true"] #search-icon-legacy {
+      background-color: rgba(255, 255, 255, 0.07) !important;
+      border-color: rgba(255, 255, 255, 0.12) !important;
     }
   `;
 
