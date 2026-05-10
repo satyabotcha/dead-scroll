@@ -281,13 +281,17 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     const drawH  = bgImage.naturalHeight * scale;
 
     // Black hole sits at ~(62%, 52%) of the source image.
-    // Map that point to the canvas center, then apply gentle parallax drift.
-    const focalX = bgImage.naturalWidth  * 0.62;
-    const focalY = bgImage.naturalHeight * 0.52;
-    const driftX = Math.sin(t * 0.042) * 10 * ratio;
-    const driftY = Math.cos(t * 0.031) *  6 * ratio;
-    const drawX  = width  * 0.5 - focalX * scale + driftX;
-    const drawY  = height * 0.5 - focalY * scale + driftY;
+    // Map that point to canvas centre, then clamp so the image always fully
+    // covers the canvas (no black bars on any edge), then add parallax drift.
+    const focalX  = bgImage.naturalWidth  * 0.62;
+    const focalY  = bgImage.naturalHeight * 0.52;
+    const driftX  = Math.sin(t * 0.042) * 10 * ratio;
+    const driftY  = Math.cos(t * 0.031) *  6 * ratio;
+    const idealX  = width  * 0.5 - focalX * scale;
+    const idealY  = height * 0.5 - focalY * scale;
+    // Clamp: drawX must stay in [width-drawW, 0] so image covers full width
+    const drawX   = Math.min(0, Math.max(width  - drawW, idealX)) + driftX;
+    const drawY   = Math.min(0, Math.max(height - drawH, idealY)) + driftY;
 
     ctx.drawImage(bgImage, drawX, drawY, drawW, drawH);
     ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
@@ -323,125 +327,115 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   }
 
   // ── Meteors ──────────────────────────────────────────────────────────────
-  // One regular meteor + one occasional second, so you almost never see two
-  // at once (~96% of meteor-visible time is solo). Each crosses at least
-  // half the screen before fading. Alpha = sin(π·progress) for smooth ends.
+  // 4 independent meteors — each has its own period and time offset so they
+  // never fire as a synchronised burst. Alpha = sin(π·progress) for smooth
+  // fade-in and fade-out with no hard cuts at either boundary.
+  const meteorConfigs = [
+    { period: 16, offset: 0,  activeFrac: 0.14 },
+    { period: 21, offset: 5,  activeFrac: 0.13 },
+    { period: 27, offset: 11, activeFrac: 0.12 },
+    { period: 34, offset: 19, activeFrac: 0.14 },
+  ];
 
-  // Helper: draw a single meteor given all parameters
-  const drawMeteor = (
-    seedBase: number, seed: number,
-    progress: number, alpha: number,
-    lineW: number
-  ) => {
-    const mx0   = width  * (0.08 + seededRand(seedBase + seed * 6)     * 0.82);
-    const my0   = height * (0.04 + seededRand(seedBase + seed * 6 + 1) * 0.54);
-    const angle = 0.12   + seededRand(seedBase + seed * 6 + 2) * 0.23;
-    const len   = (115   + seededRand(seedBase + seed * 6 + 3) * 145) * ratio;
-    const speed = 0.82   + seededRand(seedBase + seed * 6 + 4) * 0.36;
+  for (let meteor = 0; meteor < 4; meteor += 1) {
+    const { period, offset, activeFrac } = meteorConfigs[meteor];
+    const tShifted   = t + offset;
+    const showerSeed = Math.floor(tShifted / period);
+    const localPhase = (tShifted % period) / period;
+
+    if (localPhase > activeFrac) continue;
+
+    const progress = localPhase / activeFrac;
+    const alpha    = Math.sin(progress * Math.PI);
+
+    const seedBase = 3000 + meteor * 120;
+    const mx0   = width  * (0.08 + seededRand(seedBase + showerSeed * 5)     * 0.82);
+    const my0   = height * (0.04 + seededRand(seedBase + showerSeed * 5 + 1) * 0.54);
+    const angle = 0.12   + seededRand(seedBase + showerSeed * 5 + 2) * 0.23;
+    const len   = (115   + seededRand(seedBase + showerSeed * 5 + 3) * 145) * ratio;
+    const speed = 0.82   + seededRand(seedBase + showerSeed * 5 + 4) * 0.36;
 
     const headX     = mx0 + Math.cos(angle) * len * progress * speed;
     const headY     = my0 + Math.sin(angle) * len * progress * speed;
-    const trailFrac = Math.min(progress * 1.6, 1) * 0.52;
+    const trailFrac = Math.min(progress * 1.8, 1) * 0.54;
     const tailX     = headX - Math.cos(angle) * len * trailFrac;
     const tailY     = headY - Math.sin(angle) * len * trailFrac;
 
     const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
     trailGrad.addColorStop(0,    "rgba(255,255,255,0)");
-    trailGrad.addColorStop(0.55, `rgba(185, 212, 255, ${alpha * 0.30})`);
-    trailGrad.addColorStop(1,    `rgba(255, 255, 255, ${alpha * 0.78})`);
+    trailGrad.addColorStop(0.58, `rgba(185, 212, 255, ${alpha * 0.32})`);
+    trailGrad.addColorStop(1,    `rgba(255, 255, 255, ${alpha * 0.76})`);
     ctx.beginPath();
     ctx.moveTo(tailX, tailY);
     ctx.lineTo(headX, headY);
     ctx.strokeStyle = trailGrad;
-    ctx.lineWidth   = lineW * ratio;
+    ctx.lineWidth   = (0.8 + meteor * 0.11) * ratio;
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.arc(headX, headY, 1.4 * ratio, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.85})`;
+    ctx.arc(headX, headY, 1.35 * ratio, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.82})`;
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(headX, headY, 4.5 * ratio, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(185, 215, 255, ${alpha * 0.12})`;
+    ctx.arc(headX, headY, 4.2 * ratio, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(185, 215, 255, ${alpha * 0.13})`;
     ctx.fill();
-  };
-
-  // Regular meteor — fires every ~20s
-  {
-    const period     = 20;
-    const activeFrac = 0.18;
-    const seed       = Math.floor(t / period);
-    const phase      = (t % period) / period;
-    if (phase <= activeFrac) {
-      const progress = phase / activeFrac;
-      drawMeteor(3000, seed, progress, Math.sin(progress * Math.PI), 0.9);
-    }
-  }
-
-  // Occasional second meteor — fires every ~52s, offset so rarely overlaps
-  {
-    const period     = 52;
-    const activeFrac = 0.14;
-    const tOff       = t + 23;
-    const seed       = Math.floor(tOff / period);
-    const phase      = (tOff % period) / period;
-    if (phase <= activeFrac) {
-      const progress = phase / activeFrac;
-      drawMeteor(3600, seed, progress, Math.sin(progress * Math.PI), 0.75);
-    }
   }
 
   // ── Rare long meteors (2) ────────────────────────────────────────────────
-  // Dramatic, slow, nearly full-width. Two independent cycles so they
-  // don't always coincide.
-  const drawRareMeteor = (seedBase: number, seed: number, progress: number, alpha: number) => {
-    const mx0   = width  * (0.16 + seededRand(seedBase + seed * 5)     * 0.55);
-    const my0   = height * (0.12 + seededRand(seedBase + seed * 5 + 1) * 0.36);
-    const angle = 0.06   + seededRand(seedBase + seed * 5 + 2) * 0.13;
-    const len   = (190   + seededRand(seedBase + seed * 5 + 3) * 160) * ratio;
-    const headX = mx0 + Math.cos(angle) * len * progress;
-    const headY = my0 + Math.sin(angle) * len * progress;
-    const tailX = headX - Math.cos(angle) * len * Math.min(progress * 1.4, 1) * 0.60;
-    const tailY = headY - Math.sin(angle) * len * Math.min(progress * 1.4, 1) * 0.60;
-
-    const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
-    trailGrad.addColorStop(0,    "rgba(255,255,255,0)");
-    trailGrad.addColorStop(0.45, `rgba(170, 205, 255, ${alpha * 0.36})`);
-    trailGrad.addColorStop(1,    `rgba(255, 255, 255, ${alpha * 0.90})`);
-    ctx.beginPath();
-    ctx.moveTo(tailX, tailY);
-    ctx.lineTo(headX, headY);
-    ctx.strokeStyle = trailGrad;
-    ctx.lineWidth   = 1.4 * ratio;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(headX, headY, 2.0 * ratio, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.90})`;
-    ctx.fill();
-  };
-
-  { // Rare long #1 — ~65s cycle
+  { // Rare #1 — ~65s cycle
     const period     = 65;
     const activeFrac = 0.042;
-    const seed       = Math.floor(t / period);
+    const rareSeed   = Math.floor(t / period);
     const phase      = (t % period) / period;
     if (phase <= activeFrac) {
       const progress = phase / activeFrac;
-      drawRareMeteor(4200, seed, progress, Math.sin(progress * Math.PI));
+      const alpha    = Math.sin(progress * Math.PI);
+      const mx0   = width  * (0.16 + seededRand(4200 + rareSeed * 4) * 0.55);
+      const my0   = height * (0.12 + seededRand(4201 + rareSeed * 4) * 0.36);
+      const angle = 0.06   + seededRand(4202 + rareSeed * 4) * 0.13;
+      const len   = (190   + seededRand(4203 + rareSeed * 4) * 160) * ratio;
+      const headX = mx0 + Math.cos(angle) * len * progress;
+      const headY = my0 + Math.sin(angle) * len * progress;
+      const tailX = headX - Math.cos(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
+      const tailY = headY - Math.sin(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
+      const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
+      trailGrad.addColorStop(0,    "rgba(255,255,255,0)");
+      trailGrad.addColorStop(0.48, `rgba(170, 205, 255, ${alpha * 0.34})`);
+      trailGrad.addColorStop(1,    `rgba(255, 255, 255, ${alpha * 0.86})`);
+      ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(headX, headY);
+      ctx.strokeStyle = trailGrad; ctx.lineWidth = 1.25 * ratio; ctx.stroke();
+      ctx.beginPath(); ctx.arc(headX, headY, 1.9 * ratio, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.86})`; ctx.fill();
     }
   }
 
-  { // Rare long #2 — ~90s cycle, offset so the two rares aren't in sync
+  { // Rare #2 — ~90s cycle, offset so the two rares aren't in sync
     const period     = 90;
     const activeFrac = 0.038;
     const tOff       = t + 38;
-    const seed       = Math.floor(tOff / period);
+    const rareSeed   = Math.floor(tOff / period);
     const phase      = (tOff % period) / period;
     if (phase <= activeFrac) {
       const progress = phase / activeFrac;
-      drawRareMeteor(4800, seed, progress, Math.sin(progress * Math.PI));
+      const alpha    = Math.sin(progress * Math.PI);
+      const mx0   = width  * (0.16 + seededRand(4800 + rareSeed * 4) * 0.55);
+      const my0   = height * (0.12 + seededRand(4801 + rareSeed * 4) * 0.36);
+      const angle = 0.06   + seededRand(4802 + rareSeed * 4) * 0.13;
+      const len   = (190   + seededRand(4803 + rareSeed * 4) * 160) * ratio;
+      const headX = mx0 + Math.cos(angle) * len * progress;
+      const headY = my0 + Math.sin(angle) * len * progress;
+      const tailX = headX - Math.cos(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
+      const tailY = headY - Math.sin(angle) * len * Math.min(progress * 1.5, 1) * 0.62;
+      const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
+      trailGrad.addColorStop(0,    "rgba(255,255,255,0)");
+      trailGrad.addColorStop(0.48, `rgba(170, 205, 255, ${alpha * 0.34})`);
+      trailGrad.addColorStop(1,    `rgba(255, 255, 255, ${alpha * 0.86})`);
+      ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(headX, headY);
+      ctx.strokeStyle = trailGrad; ctx.lineWidth = 1.25 * ratio; ctx.stroke();
+      ctx.beginPath(); ctx.arc(headX, headY, 1.9 * ratio, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.86})`; ctx.fill();
     }
   }
 
