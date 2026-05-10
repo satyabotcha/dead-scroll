@@ -127,7 +127,8 @@ const SEARCH_SHORTS_FILTER_SELECTOR = [
   "tp-yt-paper-tab",
   "[role='tab']"
 ].join(",");
-let bgImage: HTMLImageElement | null = null;
+let bgImageLoaded = false;
+let calmCanvasShell: HTMLDivElement | null = null;
 let autoplayWasDisabledByFocusMode = false;
 let lastAutoplayToggleClickAt = 0;
 let adWasBeingSpedThrough = false;
@@ -200,7 +201,10 @@ function installFeedBlocker(): void {
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
-      background: #060a14;
+      background-color: #060a14;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: 62% 52%;
     }
 
     #${CALM_CANVAS_ID} canvas {
@@ -233,6 +237,7 @@ function removeCalmCanvas(): void {
   calmCanvasResizeObserver?.disconnect();
   calmCanvasResizeObserver = null;
   calmCanvasLastFrameAt = 0;
+  calmCanvasShell = null;
   document.getElementById(CALM_CANVAS_ID)?.remove();
 }
 
@@ -269,48 +274,22 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   ctx.clearRect(0, 0, width, height);
 
   // ── Background ───────────────────────────────────────────────────────────
-  if (bgImage) {
-    // Cover scaling: fill the canvas without stretching, keeping aspect ratio.
-    // Use the larger of the two candidate scales so no empty space shows.
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    const scaleX = width  / bgImage.naturalWidth;
-    const scaleY = height / bgImage.naturalHeight;
-    const scale  = Math.max(scaleX, scaleY);
-    const drawW  = bgImage.naturalWidth  * scale;
-    const drawH  = bgImage.naturalHeight * scale;
-
-    // Black hole sits at ~(62%, 52%) of the source image.
-    // Map that point to canvas centre, then clamp so the image always fully
-    // covers the canvas (no black bars on any edge), then add parallax drift.
-    const focalX  = bgImage.naturalWidth  * 0.62;
-    const focalY  = bgImage.naturalHeight * 0.52;
-    const driftX  = Math.sin(t * 0.042) * 10 * ratio;
-    const driftY  = Math.cos(t * 0.031) *  6 * ratio;
-    const idealX  = width  * 0.5 - focalX * scale;
-    const idealY  = height * 0.5 - focalY * scale;
-    // Clamp: drawX must stay in [width-drawW, 0] so image covers full width
-    const drawX   = Math.min(0, Math.max(width  - drawW, idealX)) + driftX;
-    const drawY   = Math.min(0, Math.max(height - drawH, idealY)) + driftY;
-
-    ctx.drawImage(bgImage, drawX, drawY, drawW, drawH);
+  // The image is rendered via CSS background-image on the shell div, which
+  // gives native DPR quality (no canvas scaling artifacts). We just nudge
+  // background-position each frame for parallax, then draw a darkening
+  // overlay on the canvas so the animation layers stay readable.
+  if (bgImageLoaded && calmCanvasShell) {
+    const driftX = Math.sin(t * 0.042) * 0.55;  // percent — ~8px on a 1440px viewport
+    const driftY = Math.cos(t * 0.031) * 0.40;
+    calmCanvasShell.style.backgroundPosition = `${62 + driftX}% ${52 + driftY}%`;
     ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
-    ctx.fillRect(0, 0, width, height);
-  } else {
-    // Fallback gradient while the image loads
-    const bg = ctx.createLinearGradient(0, 0, width, height);
-    bg.addColorStop(0,    "#02050d");
-    bg.addColorStop(0.42, "#030816");
-    bg.addColorStop(0.72, "#020611");
-    bg.addColorStop(1,    "#01030a");
-    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
   }
 
   // ── Accretion disk pulse ─────────────────────────────────────────────────
   // Warm orange-gold ring breathes around the black hole (~12-second cycle).
   // The inner gradient is transparent so the dark core stays dark.
-  if (bgImage) {
+  if (bgImageLoaded) {
     const bhX    = width  * 0.625;
     const bhY    = height * 0.415;
     const bhMin  = Math.min(width, height);
@@ -485,13 +464,19 @@ function ensureCalmCanvas(focusMode: boolean): void {
     return;
   }
 
-  const shell = document.createElement("div");
+  const shell = document.createElement("div") as HTMLDivElement;
   const canvas = document.createElement("canvas");
 
   shell.id = CALM_CANVAS_ID;
   shell.setAttribute("aria-hidden", "true");
   shell.append(canvas);
   document.body.append(shell);
+  calmCanvasShell = shell;
+
+  // If the image already loaded before this canvas was created, apply it now
+  if (bgImageLoaded) {
+    shell.style.backgroundImage = `url("${chrome.runtime.getURL("assets/universe_background.png")}")`;
+  }
 
   calmCanvasResizeObserver = new ResizeObserver(() => resizeCalmCanvas(canvas));
   calmCanvasResizeObserver.observe(shell);
@@ -517,9 +502,17 @@ function trackFocusDay(): void {
 }
 
 function loadBgImage(): void {
+  const url = chrome.runtime.getURL("assets/universe_background.png");
   const img = new Image();
-  img.src = chrome.runtime.getURL("assets/universe_background.png");
-  img.onload = () => { bgImage = img; };
+  img.src = url;
+  img.onload = () => {
+    bgImageLoaded = true;
+    // Set background-image on the shell so the browser renders it at native
+    // DPR quality — far sharper than canvas drawImage scaling.
+    if (calmCanvasShell) {
+      calmCanvasShell.style.backgroundImage = `url("${url}")`;
+    }
+  };
 }
 
 function loadConstellationStarCount(): void {
