@@ -4,9 +4,22 @@
   "version": "0.1.0",
   "description": "Removes distracting social feeds while preserving intentional use.",
   "permissions": ["storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "assets/icon_focused_16.png",
+    "32": "assets/icon_focused_32.png",
+    "48": "assets/icon_focused_48.png",
+    "128": "assets/icon_focused_128.png"
+  },
   "action": {
     "default_title": "Monk Mode",
-    "default_popup": "popup/popup.html"
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/icon_focused_16.png",
+      "32": "assets/icon_focused_32.png"
+    }
   },
   "web_accessible_resources": [
     {

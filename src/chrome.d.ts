@@ -7,6 +7,9 @@ declare const chrome: {
   runtime: {
     getURL(path: string): string;
   };
+  action: {
+    setIcon(details: { path: Record<string, string> }): void;
+  };
   storage: {
     sync: {
       get<T extends Record<string, unknown>>(
