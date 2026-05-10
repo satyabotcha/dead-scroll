@@ -270,19 +270,26 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
 
   // ── Background ───────────────────────────────────────────────────────────
   if (bgImage) {
-    // Cover scaling: fit to width, anchor top, let bottom crop naturally.
-    // This preserves the image's aspect ratio so nothing looks squished.
+    // Cover scaling: fill the canvas without stretching, keeping aspect ratio.
+    // Use the larger of the two candidate scales so no empty space shows.
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    const driftX = Math.sin(t * 0.042) * 12 * ratio;
+    const scaleX = width  / bgImage.naturalWidth;
+    const scaleY = height / bgImage.naturalHeight;
+    const scale  = Math.max(scaleX, scaleY);
+    const drawW  = bgImage.naturalWidth  * scale;
+    const drawH  = bgImage.naturalHeight * scale;
+
+    // Black hole sits at ~(62%, 52%) of the source image.
+    // Map that point to the canvas center, then apply gentle parallax drift.
+    const focalX = bgImage.naturalWidth  * 0.62;
+    const focalY = bgImage.naturalHeight * 0.52;
+    const driftX = Math.sin(t * 0.042) * 10 * ratio;
     const driftY = Math.cos(t * 0.031) *  6 * ratio;
-    // Scale so the image exactly fills the canvas width (+ small drift pad)
-    const pad   = 14 * ratio;
-    const scale = (width + pad * 2) / bgImage.naturalWidth;
-    const drawW = bgImage.naturalWidth  * scale;
-    const drawH = bgImage.naturalHeight * scale;
-    // Anchor to top; bottom overflows and is clipped by the canvas
-    ctx.drawImage(bgImage, -pad + driftX, -pad + driftY, drawW, drawH);
+    const drawX  = width  * 0.5 - focalX * scale + driftX;
+    const drawY  = height * 0.5 - focalY * scale + driftY;
+
+    ctx.drawImage(bgImage, drawX, drawY, drawW, drawH);
     ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
     ctx.fillRect(0, 0, width, height);
   } else {
@@ -326,12 +333,11 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     progress: number, alpha: number,
     lineW: number
   ) => {
-    const mx0   = width  * (0.04 + seededRand(seedBase + seed * 6)     * 0.55);
-    const my0   = height * (0.02 + seededRand(seedBase + seed * 6 + 1) * 0.45);
-    const angle = 0.10   + seededRand(seedBase + seed * 6 + 2) * 0.20;
-    // Length: 52–80% of screen width so it always crosses more than half
-    const len   = (0.52  + seededRand(seedBase + seed * 6 + 3) * 0.28) * width;
-    const speed = 0.88   + seededRand(seedBase + seed * 6 + 4) * 0.24;
+    const mx0   = width  * (0.08 + seededRand(seedBase + seed * 6)     * 0.82);
+    const my0   = height * (0.04 + seededRand(seedBase + seed * 6 + 1) * 0.54);
+    const angle = 0.12   + seededRand(seedBase + seed * 6 + 2) * 0.23;
+    const len   = (115   + seededRand(seedBase + seed * 6 + 3) * 145) * ratio;
+    const speed = 0.82   + seededRand(seedBase + seed * 6 + 4) * 0.36;
 
     const headX     = mx0 + Math.cos(angle) * len * progress * speed;
     const headY     = my0 + Math.sin(angle) * len * progress * speed;
@@ -390,10 +396,10 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   // Dramatic, slow, nearly full-width. Two independent cycles so they
   // don't always coincide.
   const drawRareMeteor = (seedBase: number, seed: number, progress: number, alpha: number) => {
-    const mx0   = width  * (0.05 + seededRand(seedBase + seed * 5)     * 0.40);
-    const my0   = height * (0.08 + seededRand(seedBase + seed * 5 + 1) * 0.32);
-    const angle = 0.05   + seededRand(seedBase + seed * 5 + 2) * 0.12;
-    const len   = (0.70  + seededRand(seedBase + seed * 5 + 3) * 0.22) * width;
+    const mx0   = width  * (0.16 + seededRand(seedBase + seed * 5)     * 0.55);
+    const my0   = height * (0.12 + seededRand(seedBase + seed * 5 + 1) * 0.36);
+    const angle = 0.06   + seededRand(seedBase + seed * 5 + 2) * 0.13;
+    const len   = (190   + seededRand(seedBase + seed * 5 + 3) * 160) * ratio;
     const headX = mx0 + Math.cos(angle) * len * progress;
     const headY = my0 + Math.sin(angle) * len * progress;
     const tailX = headX - Math.cos(angle) * len * Math.min(progress * 1.4, 1) * 0.60;
