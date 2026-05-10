@@ -333,7 +333,7 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   // warmth: 0 at day 0 (cold blue-white sky), 1 at day 365 (rich amber night)
   const warmth = smoothstep(30, 365, days);
   const starCount = getVisibleConstellationStarCount(days);
-  const constellationProgress = smoothstep(1, 120, days);
+  const constellationProgress = smoothstep(1, 60, days);
   // Raise the floor so day 0 already has a faint nebula presence
   const nebulaDepth = 0.028 + smoothstep(7, 365, days) * 0.085;
 
@@ -418,13 +418,20 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   cachedEdges.forEach(({ i, j, a }) => {
     const sa = cachedStars[i];
     const sb = cachedStars[j];
-    const alpha = a * (0.1 + constellationProgress * 0.72);
+    // Base visibility starts at 0.35 so lines are readable from day 1;
+    // constellationProgress brings them to full brightness by day 60.
+    const alpha = a * 2.5 * (0.35 + constellationProgress * 0.65);
 
     ctx.beginPath();
     ctx.moveTo(sa.x * width, sa.y * height);
     ctx.lineTo(sb.x * width, sb.y * height);
-    ctx.strokeStyle = `rgba(110, 152, 218, ${alpha})`;
-    ctx.lineWidth = 0.4 * ratio;
+    // Soft glow halo first
+    ctx.strokeStyle = `rgba(130, 175, 240, ${alpha * 0.28})`;
+    ctx.lineWidth = 2.4 * ratio;
+    ctx.stroke();
+    // Sharp bright core on top
+    ctx.strokeStyle = `rgba(170, 205, 255, ${alpha})`;
+    ctx.lineWidth = 0.7 * ratio;
     ctx.stroke();
   });
 
