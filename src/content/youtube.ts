@@ -192,6 +192,27 @@ function installFeedBlocker(): void {
       display: none !important;
     }
 
+    /* ── Dark mode ────────────────────────────────────────────────────────── */
+    /* Force near-black backgrounds on every page so the whole experience     */
+    /* feels consistent — no jarring white flash when navigating.             */
+    html[data-feed-remover-focus-mode="true"] ytd-app,
+    html[data-feed-remover-focus-mode="true"] #page-manager,
+    html[data-feed-remover-focus-mode="true"] ytd-browse,
+    html[data-feed-remover-focus-mode="true"] ytd-search,
+    html[data-feed-remover-focus-mode="true"] ytd-watch-flexy,
+    html[data-feed-remover-focus-mode="true"] #below,
+    html[data-feed-remover-focus-mode="true"] #secondary,
+    html[data-feed-remover-focus-mode="true"] ytd-comments,
+    html[data-feed-remover-focus-mode="true"] #masthead-container {
+      background-color: #0a0a0a !important;
+    }
+
+    /* Watch page: the column holding the player and metadata */
+    html[data-feed-remover-focus-mode="true"] #primary,
+    html[data-feed-remover-focus-mode="true"] #primary-inner {
+      background-color: #0a0a0a !important;
+    }
+
     #${CALM_CANVAS_ID} {
       position: fixed;
       top: ${YOUTUBE_MASTHEAD_HEIGHT_PX}px;
@@ -696,6 +717,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     loadConstellationStarCount();
   }
 });
+
+// Force YouTube's own dark-mode CSS by setting the html[dark] attribute.
+// This activates YouTube's built-in dark palette for every element
+// (dropdowns, panels, text, icons) without needing to override each one.
+document.documentElement.setAttribute("dark", "");
 
 setFocusMode(YOUTUBE_DEFAULT_FOCUS_MODE);
 installFeedBlocker();
