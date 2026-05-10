@@ -330,9 +330,12 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   const t = timestamp / 1000;
   const days = clamp(effectiveStarCount, 0, 365);
   const habitProgress = smoothstep(0, 365, days);
+  // warmth: 0 at day 0 (cold blue-white sky), 1 at day 365 (rich amber night)
+  const warmth = smoothstep(30, 365, days);
   const starCount = getVisibleConstellationStarCount(days);
   const constellationProgress = smoothstep(1, 120, days);
-  const nebulaDepth = 0.018 + smoothstep(7, 365, days) * 0.075;
+  // Raise the floor so day 0 already has a faint nebula presence
+  const nebulaDepth = 0.028 + smoothstep(7, 365, days) * 0.085;
 
   ctx.clearRect(0, 0, width, height);
 
@@ -365,6 +368,21 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     ctx.fillRect(0, 0, width, height);
   });
 
+  // Warm amber nebula — drifts in gradually from day ~140, deepens toward day 365
+  const warmNebulaStrength = smoothstep(0.38, 1.0, habitProgress);
+  if (warmNebulaStrength > 0.001) {
+    const wnCx = width  * 0.48 + Math.sin(t * 0.008 + 2.1) * 8 * ratio;
+    const wnCy = height * 0.44 + Math.cos(t * 0.007 + 1.3) * 6 * ratio;
+    const wnR  = 0.34 * Math.min(width, height);
+    const wnOpacity = nebulaDepth * 0.55 * warmNebulaStrength;
+    const wnGrad = ctx.createRadialGradient(wnCx, wnCy, 0, wnCx, wnCy, wnR);
+    wnGrad.addColorStop(0,    `rgba(160, 95, 40, ${wnOpacity})`);
+    wnGrad.addColorStop(0.45, `rgba(120, 60, 20, ${wnOpacity * 0.3})`);
+    wnGrad.addColorStop(1,    "rgba(0,0,0,0)");
+    ctx.fillStyle = wnGrad;
+    ctx.fillRect(0, 0, width, height);
+  }
+
   const dustCount = Math.round(45 + habitProgress * 80);
 
   for (let i = 0; i < dustCount; i += 1) {
@@ -375,6 +393,23 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     ctx.beginPath();
     ctx.arc(dx, dy, ds, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(195, 215, 255, ${da})`;
+    ctx.fill();
+  }
+
+  // Permanent deep-field background stars — always visible from day 0.
+  // These are the ancient universe the user steps into on day 1: faint,
+  // still, and present before any habit has been formed.
+  const bgStarCount = 36;
+  for (let i = 0; i < bgStarCount; i += 1) {
+    const bx = seededRand(8000 + i * 3) * width;
+    const by = seededRand(8001 + i * 3) * height;
+    const bb = seededRand(8002 + i * 3);
+    const btw = Math.sin(t * (0.03 + bb * 0.02) + i * 1.7) * 0.06;
+    const ba = (0.05 + bb * 0.10) * (0.8 + btw);
+    const bs = (0.18 + bb * 0.28) * ratio;
+    ctx.beginPath();
+    ctx.arc(bx, by, bs, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(200, 218, 255, ${ba})`;
     ctx.fill();
   }
 
@@ -402,9 +437,16 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     const sy = star.y * height + Math.cos(t * 0.007 + i * 0.7) * parallax;
     const size = (0.46 + star.b * 1.05) * ratio;
     const temp = seededRand(i * 4 + 5);
-    const sr = Math.round(246 - temp * 18);
-    const sg = Math.round(246 - temp * 2);
-    const sb2 = Math.round(225 + temp * 26);
+    // Blend from cold blue-white (day 0) to warm amber-gold (day 365)
+    const coolR = 246 - temp * 18;
+    const coolG = 246 - temp * 2;
+    const coolB = 225 + temp * 26;
+    const warmR = 255;
+    const warmG = 215 - temp * 25;
+    const warmB = 155 - temp * 55;
+    const sr  = Math.round(coolR + (warmR - coolR) * warmth);
+    const sg  = Math.round(coolG + (warmG - coolG) * warmth);
+    const sb2 = Math.round(coolB + (warmB - coolB) * warmth);
 
     if (star.b > 0.55) {
       ctx.beginPath();
@@ -508,6 +550,20 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     ctx.arc(headX, headY, 1.9 * ratio, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.86})`;
     ctx.fill();
+  }
+
+  // Warm center bloom — barely perceptible at day 100, full warmth by day 365.
+  // Like a distant sunrise held behind the stars.
+  const bloomStrength = smoothstep(0.25, 1.0, habitProgress) * 0.038;
+  if (bloomStrength > 0.001) {
+    const bloomGrad = ctx.createRadialGradient(
+      width * 0.5, height * 0.5, 0,
+      width * 0.5, height * 0.5, Math.min(width, height) * 0.52
+    );
+    bloomGrad.addColorStop(0, `rgba(155, 95, 35, ${bloomStrength})`);
+    bloomGrad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = bloomGrad;
+    ctx.fillRect(0, 0, width, height);
   }
 
   const vignette = ctx.createRadialGradient(
