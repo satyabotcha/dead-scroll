@@ -127,6 +127,7 @@ const SEARCH_SHORTS_FILTER_SELECTOR = [
   "tp-yt-paper-tab",
   "[role='tab']"
 ].join(",");
+let bgImage: HTMLImageElement | null = null;
 let autoplayWasDisabledByFocusMode = false;
 let lastAutoplayToggleClickAt = 0;
 let adWasBeingSpedThrough = false;
@@ -334,18 +335,34 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   const warmth = smoothstep(30, 365, days);
   const starCount = getVisibleConstellationStarCount(days);
   const constellationProgress = smoothstep(1, 60, days);
-  // Raise the floor so day 0 already has a faint nebula presence
-  const nebulaDepth = 0.028 + smoothstep(7, 365, days) * 0.085;
+  // With the photo background, nebulae only need to add breathing life —
+  // the image already provides the visual texture.
+  const nebulaDepth = bgImage
+    ? 0.01  + smoothstep(7, 365, days) * 0.028
+    : 0.028 + smoothstep(7, 365, days) * 0.085;
 
   ctx.clearRect(0, 0, width, height);
 
-  const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "#02050d");
-  bg.addColorStop(0.42, "#030816");
-  bg.addColorStop(0.72, "#020611");
-  bg.addColorStop(1, "#01030a");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
+  if (bgImage) {
+    // Slow parallax drift — image floats gently so it never feels static.
+    // Pad is large enough that the drifting edges never peek through.
+    const pad = 18 * ratio;
+    const driftX = Math.sin(t * 0.042) * 13 * ratio;
+    const driftY = Math.cos(t * 0.031) *  7 * ratio;
+    ctx.drawImage(bgImage, -pad + driftX, -pad + driftY, width + pad * 2, height + pad * 2);
+    // Slight darkening so constellation text/lines stay readable
+    ctx.fillStyle = "rgba(0, 0, 0, 0.38)";
+    ctx.fillRect(0, 0, width, height);
+  } else {
+    // Fallback while image loads (or if it fails)
+    const bg = ctx.createLinearGradient(0, 0, width, height);
+    bg.addColorStop(0, "#02050d");
+    bg.addColorStop(0.42, "#030816");
+    bg.addColorStop(0.72, "#020611");
+    bg.addColorStop(1, "#01030a");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   const nebulae = [
     { nx: 0.72, ny: 0.34, r: 0.36, rgb: "34, 108, 155", phase: 1.7, base: 0.72 },
@@ -380,6 +397,26 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     wnGrad.addColorStop(0.45, `rgba(120, 60, 20, ${wnOpacity * 0.3})`);
     wnGrad.addColorStop(1,    "rgba(0,0,0,0)");
     ctx.fillStyle = wnGrad;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  // Accretion disk glow — pulses around the black hole in the background image.
+  // The black hole sits at roughly (62.5%, 41.5%) of the frame.
+  // Inner gradient is transparent so the dark core stays dark;
+  // the warm ring breathes slowly at about a 12-second cycle.
+  if (bgImage) {
+    const bhX = width  * 0.625;
+    const bhY = height * 0.415;
+    const bhMin  = Math.min(width, height);
+    const bhWave = Math.sin(t * 0.52) * 0.5 + 0.5;           // 0→1, period ~12 s
+    const bhAlpha = 0.065 + bhWave * 0.045;
+    const bhGrad = ctx.createRadialGradient(bhX, bhY, bhMin * 0.034, bhX, bhY, bhMin * 0.21);
+    bhGrad.addColorStop(0,    "rgba(0,0,0,0)");                              // BH core: dark
+    bhGrad.addColorStop(0.22, `rgba(225, 145, 55, ${bhAlpha * 0.7})`);      // inner ring warm-up
+    bhGrad.addColorStop(0.42, `rgba(205, 105, 30, ${bhAlpha})`);            // peak glow
+    bhGrad.addColorStop(0.68, `rgba(155,  70, 20, ${bhAlpha * 0.35})`);     // fade out
+    bhGrad.addColorStop(1,    "rgba(0,0,0,0)");
+    ctx.fillStyle = bhGrad;
     ctx.fillRect(0, 0, width, height);
   }
 
@@ -649,6 +686,12 @@ function trackFocusDay(): void {
   });
 }
 
+function loadBgImage(): void {
+  const img = new Image();
+  img.src = chrome.runtime.getURL("assets/universe_background.png");
+  img.onload = () => { bgImage = img; };
+}
+
 function loadConstellationStarCount(): void {
   chrome.storage.local.get([CONSTELLATION_PREVIEW_KEY, CONSTELLATION_FOCUS_DAYS_KEY], (result) => {
     const preview = result[CONSTELLATION_PREVIEW_KEY];
@@ -854,6 +897,7 @@ setFocusMode(YOUTUBE_DEFAULT_FOCUS_MODE);
 installFeedBlocker();
 loadSettings();
 loadConstellationStarCount();
+loadBgImage();
 
 const observer = new MutationObserver(() => {
   const focusMode = document.documentElement.dataset.feedRemoverFocusMode === "true";
