@@ -306,63 +306,44 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   }
 
   // ── Meteors ──────────────────────────────────────────────────────────────
-  // 4 independent meteors — each has its own period and time offset so they
-  // never fire as a synchronised burst. Alpha = sin(π·progress) for smooth
-  // fade-in and fade-out with no hard cuts at either boundary.
-  const meteorConfigs = [
-    { period: 16, offset: 0,  activeFrac: 0.14 },
-    { period: 21, offset: 5,  activeFrac: 0.13 },
-    { period: 27, offset: 11, activeFrac: 0.12 },
-    { period: 34, offset: 19, activeFrac: 0.14 },
-  ];
+  // All meteors originate from the upper-left zone (x: 2–50%, y: 2–28%) so
+  // they cross the sky above/around the black hole rather than through it.
+  // Alpha = sin(π·progress) — smooth fade-in and fade-out, no hard cuts.
 
-  for (let meteor = 0; meteor < 4; meteor += 1) {
-    const { period, offset, activeFrac } = meteorConfigs[meteor];
-    const tShifted   = t + offset;
-    const showerSeed = Math.floor(tShifted / period);
-    const localPhase = (tShifted % period) / period;
-
-    if (localPhase > activeFrac) continue;
-
-    const progress = localPhase / activeFrac;
-    const alpha    = Math.sin(progress * Math.PI);
-
-    const seedBase = 3000 + meteor * 120;
-    const mx0   = width  * (0.08 + seededRand(seedBase + showerSeed * 5)     * 0.82);
-    const my0   = height * (0.04 + seededRand(seedBase + showerSeed * 5 + 1) * 0.54);
-    const angle = 0.12   + seededRand(seedBase + showerSeed * 5 + 2) * 0.23;
-    const len   = (115   + seededRand(seedBase + showerSeed * 5 + 3) * 145) * ratio;
-    const speed = 0.82   + seededRand(seedBase + showerSeed * 5 + 4) * 0.36;
-
-    const headX     = mx0 + Math.cos(angle) * len * progress * speed;
-    const headY     = my0 + Math.sin(angle) * len * progress * speed;
-    const trailFrac = Math.min(progress * 1.8, 1) * 0.54;
-    const tailX     = headX - Math.cos(angle) * len * trailFrac;
-    const tailY     = headY - Math.sin(angle) * len * trailFrac;
-
-    const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
-    trailGrad.addColorStop(0,    "rgba(255,255,255,0)");
-    trailGrad.addColorStop(0.58, `rgba(185, 212, 255, ${alpha * 0.32})`);
-    trailGrad.addColorStop(1,    `rgba(255, 255, 255, ${alpha * 0.76})`);
-    ctx.beginPath();
-    ctx.moveTo(tailX, tailY);
-    ctx.lineTo(headX, headY);
-    ctx.strokeStyle = trailGrad;
-    ctx.lineWidth   = (0.8 + meteor * 0.11) * ratio;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(headX, headY, 1.35 * ratio, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.82})`;
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(headX, headY, 4.2 * ratio, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(185, 215, 255, ${alpha * 0.13})`;
-    ctx.fill();
+  // One regular meteor every ~35 s — infrequent enough to feel like a moment
+  {
+    const period     = 35;
+    const activeFrac = 0.13;
+    const seed       = Math.floor(t / period);
+    const phase      = (t % period) / period;
+    if (phase <= activeFrac) {
+      const progress = phase / activeFrac;
+      const alpha    = Math.sin(progress * Math.PI);
+      const mx0   = width  * (0.02 + seededRand(3000 + seed * 5)     * 0.48); // left half
+      const my0   = height * (0.02 + seededRand(3001 + seed * 5 + 1) * 0.26); // upper quarter
+      const angle = 0.12   + seededRand(3002 + seed * 5 + 2) * 0.23;
+      const len   = (115   + seededRand(3003 + seed * 5 + 3) * 145) * ratio;
+      const speed = 0.82   + seededRand(3004 + seed * 5 + 4) * 0.36;
+      const headX     = mx0 + Math.cos(angle) * len * progress * speed;
+      const headY     = my0 + Math.sin(angle) * len * progress * speed;
+      const trailFrac = Math.min(progress * 1.8, 1) * 0.54;
+      const tailX     = headX - Math.cos(angle) * len * trailFrac;
+      const tailY     = headY - Math.sin(angle) * len * trailFrac;
+      const trailGrad = ctx.createLinearGradient(tailX, tailY, headX, headY);
+      trailGrad.addColorStop(0,    "rgba(255,255,255,0)");
+      trailGrad.addColorStop(0.58, `rgba(185, 212, 255, ${alpha * 0.32})`);
+      trailGrad.addColorStop(1,    `rgba(255, 255, 255, ${alpha * 0.76})`);
+      ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(headX, headY);
+      ctx.strokeStyle = trailGrad; ctx.lineWidth = 0.9 * ratio; ctx.stroke();
+      ctx.beginPath(); ctx.arc(headX, headY, 1.35 * ratio, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.82})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(headX, headY, 4.2 * ratio, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(185, 215, 255, ${alpha * 0.13})`; ctx.fill();
+    }
   }
 
   // ── Rare long meteors (2) ────────────────────────────────────────────────
+  // Dramatic, slower, longer — also start from the upper-left zone.
   { // Rare #1 — ~65s cycle
     const period     = 65;
     const activeFrac = 0.042;
@@ -371,8 +352,8 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     if (phase <= activeFrac) {
       const progress = phase / activeFrac;
       const alpha    = Math.sin(progress * Math.PI);
-      const mx0   = width  * (0.16 + seededRand(4200 + rareSeed * 4) * 0.55);
-      const my0   = height * (0.12 + seededRand(4201 + rareSeed * 4) * 0.36);
+      const mx0   = width  * (0.02 + seededRand(4200 + rareSeed * 4)     * 0.44);
+      const my0   = height * (0.02 + seededRand(4201 + rareSeed * 4) * 0.24);
       const angle = 0.06   + seededRand(4202 + rareSeed * 4) * 0.13;
       const len   = (190   + seededRand(4203 + rareSeed * 4) * 160) * ratio;
       const headX = mx0 + Math.cos(angle) * len * progress;
@@ -390,7 +371,7 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     }
   }
 
-  { // Rare #2 — ~90s cycle, offset so the two rares aren't in sync
+  { // Rare #2 — ~90s cycle, offset so the two rares never coincide
     const period     = 90;
     const activeFrac = 0.038;
     const tOff       = t + 38;
@@ -399,8 +380,8 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     if (phase <= activeFrac) {
       const progress = phase / activeFrac;
       const alpha    = Math.sin(progress * Math.PI);
-      const mx0   = width  * (0.16 + seededRand(4800 + rareSeed * 4) * 0.55);
-      const my0   = height * (0.12 + seededRand(4801 + rareSeed * 4) * 0.36);
+      const mx0   = width  * (0.02 + seededRand(4800 + rareSeed * 4)     * 0.44);
+      const my0   = height * (0.02 + seededRand(4801 + rareSeed * 4) * 0.24);
       const angle = 0.06   + seededRand(4802 + rareSeed * 4) * 0.13;
       const len   = (190   + seededRand(4803 + rareSeed * 4) * 160) * ratio;
       const headX = mx0 + Math.cos(angle) * len * progress;
