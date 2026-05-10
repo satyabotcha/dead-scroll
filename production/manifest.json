@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Dead Scroll",
   "version": "0.1.0",
-  "description": "Removes distracting social feeds while preserving intentional use.",
+  "description": "Kill YouTube distractions",
   "permissions": ["storage"],
   "background": {
     "service_worker": "background.js"
@@ -17,7 +17,8 @@
     "default_title": "Dead Scroll",
     "default_icon": {
       "16": "assets/icon_focused_16.png",
-      "32": "assets/icon_focused_32.png"
+      "32": "assets/icon_focused_32.png",
+      "48": "assets/icon_focused_48.png"
     }
   },
   "web_accessible_resources": [
