@@ -48,3 +48,7 @@
 ### 2026-05-09 Zodiac art source of truth
 **Context:** We prototyped zodiac progression after generating a reference image.
 **Learning:** Hand-coded constellation paths can validate reveal mechanics but drift from the generated art direction. For visual approval, use the generated board itself as the day-30 target and layer progression masks over it before translating anything into production canvas code.
+
+### 2026-05-10 Zodiac progression should be drawn, not masked
+**Context:** The image-mask prototype matched the generated board composition but made progression feel like a fade reveal.
+**Learning:** The progression prototype needs real vector data: stars unlock by day, curved strokes draw between them, and the generated image only guides the day-30 composition. Avoid image fades for this interaction.

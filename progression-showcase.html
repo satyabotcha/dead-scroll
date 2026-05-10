@@ -107,7 +107,6 @@
 <script>
 "use strict";
 
-const TARGET_IMAGE_SRC = "prototype-assets/zodiac-target-board.png";
 const GRID_COLS = 4;
 const GRID_ROWS = 3;
 const CANVAS_MAX_DEVICE_PIXEL_RATIO = 1.75;
@@ -116,19 +115,12 @@ const canvas = document.getElementById("sky");
 const ctx = canvas.getContext("2d");
 const daySlider = document.getElementById("day-slider");
 const dayCount = document.getElementById("day-count");
-const targetImage = new Image();
 
 let width = 0;
 let height = 0;
 let ratio = 1;
 let day = Number(daySlider.value);
 let startedAt = performance.now();
-let targetLoaded = false;
-
-targetImage.src = TARGET_IMAGE_SRC;
-targetImage.addEventListener("load", () => {
-  targetLoaded = true;
-});
 
 function resize() {
   ratio = Math.min(window.devicePixelRatio || 1, CANVAS_MAX_DEVICE_PIXEL_RATIO);
@@ -160,6 +152,198 @@ const dust = Array.from({ length: 180 }, (_, i) => ({
   p: seeded(i + 400) * Math.PI * 2
 }));
 
+const SIGNS = [
+  {
+    name: "leo",
+    stars: [
+      [0.36, 0.35, 1, 1.2], [0.46, 0.25, 3, 0.95], [0.58, 0.28, 7, 0.8],
+      [0.66, 0.41, 10, 0.75], [0.55, 0.53, 15, 0.8], [0.42, 0.54, 19, 0.72],
+      [0.28, 0.62, 22, 0.68], [0.70, 0.60, 25, 0.64], [0.80, 0.47, 28, 0.6]
+    ],
+    paths: [
+      [[0.36, 0.35], [0.31, 0.21], [0.51, 0.16], [0.58, 0.28], 1, 8],
+      [[0.58, 0.28], [0.76, 0.35], [0.70, 0.55], [0.55, 0.53], 8, 16],
+      [[0.55, 0.53], [0.42, 0.61], [0.30, 0.51], [0.36, 0.35], 14, 22],
+      [[0.42, 0.54], [0.30, 0.56], [0.23, 0.61], [0.28, 0.70], 18, 25],
+      [[0.58, 0.52], [0.69, 0.69], [0.78, 0.62], [0.70, 0.47], 22, 30],
+      [[0.70, 0.47], [0.84, 0.39], [0.88, 0.53], [0.78, 0.60], 25, 30]
+    ]
+  },
+  {
+    name: "virgo",
+    stars: [
+      [0.47, 0.20, 1, 1], [0.38, 0.32, 4, 0.85], [0.50, 0.37, 8, 0.8],
+      [0.61, 0.31, 12, 0.78], [0.43, 0.54, 15, 0.72], [0.57, 0.57, 18, 0.72],
+      [0.35, 0.75, 23, 0.65], [0.68, 0.76, 26, 0.65], [0.77, 0.54, 29, 0.58]
+    ],
+    paths: [
+      [[0.47, 0.20], [0.33, 0.27], [0.32, 0.45], [0.43, 0.54], 1, 10],
+      [[0.47, 0.20], [0.63, 0.26], [0.67, 0.45], [0.57, 0.57], 6, 15],
+      [[0.38, 0.32], [0.50, 0.25], [0.59, 0.25], [0.61, 0.31], 10, 17],
+      [[0.43, 0.54], [0.31, 0.61], [0.30, 0.72], [0.35, 0.75], 16, 24],
+      [[0.57, 0.57], [0.66, 0.64], [0.68, 0.73], [0.68, 0.76], 18, 27],
+      [[0.61, 0.31], [0.82, 0.40], [0.84, 0.57], [0.70, 0.61], 22, 30]
+    ]
+  },
+  {
+    name: "libra",
+    stars: [
+      [0.31, 0.58, 1, 0.9], [0.50, 0.26, 3, 1.05], [0.69, 0.58, 6, 0.9],
+      [0.22, 0.67, 12, 0.65], [0.78, 0.67, 13, 0.65], [0.39, 0.77, 18, 0.55],
+      [0.61, 0.77, 20, 0.55], [0.50, 0.50, 23, 0.75]
+    ],
+    paths: [
+      [[0.31, 0.58], [0.35, 0.38], [0.44, 0.25], [0.50, 0.26], 1, 8],
+      [[0.50, 0.26], [0.58, 0.26], [0.65, 0.39], [0.69, 0.58], 5, 12],
+      [[0.22, 0.67], [0.38, 0.62], [0.62, 0.62], [0.78, 0.67], 11, 19],
+      [[0.30, 0.76], [0.42, 0.80], [0.58, 0.80], [0.70, 0.76], 18, 26],
+      [[0.50, 0.26], [0.47, 0.35], [0.47, 0.43], [0.50, 0.50], 22, 30]
+    ]
+  },
+  {
+    name: "scorpio",
+    stars: [
+      [0.23, 0.48, 1, 0.85], [0.34, 0.38, 4, 0.9], [0.48, 0.42, 7, 0.82],
+      [0.60, 0.53, 11, 0.78], [0.50, 0.68, 16, 0.76], [0.33, 0.70, 20, 0.7],
+      [0.70, 0.40, 24, 0.68], [0.82, 0.31, 28, 0.64]
+    ],
+    paths: [
+      [[0.23, 0.48], [0.28, 0.34], [0.44, 0.31], [0.48, 0.42], 1, 10],
+      [[0.48, 0.42], [0.65, 0.43], [0.67, 0.62], [0.50, 0.68], 8, 17],
+      [[0.50, 0.68], [0.39, 0.78], [0.26, 0.75], [0.23, 0.61], 15, 23],
+      [[0.60, 0.53], [0.70, 0.51], [0.74, 0.42], [0.70, 0.40], 20, 27],
+      [[0.70, 0.40], [0.77, 0.31], [0.83, 0.27], [0.82, 0.31], 24, 30],
+      [[0.82, 0.31], [0.77, 0.30], [0.76, 0.37], [0.83, 0.37], 28, 30]
+    ]
+  },
+  {
+    name: "sagittarius",
+    stars: [
+      [0.25, 0.72, 1, 0.75], [0.40, 0.57, 4, 0.85], [0.54, 0.47, 8, 0.82],
+      [0.71, 0.30, 12, 1], [0.71, 0.51, 16, 0.68], [0.56, 0.73, 20, 0.65],
+      [0.38, 0.76, 23, 0.62], [0.81, 0.22, 28, 0.58]
+    ],
+    paths: [
+      [[0.25, 0.72], [0.34, 0.62], [0.44, 0.53], [0.54, 0.47], 1, 11],
+      [[0.54, 0.47], [0.62, 0.41], [0.68, 0.34], [0.71, 0.30], 8, 15],
+      [[0.71, 0.30], [0.76, 0.27], [0.80, 0.24], [0.81, 0.22], 13, 18],
+      [[0.56, 0.46], [0.65, 0.51], [0.70, 0.55], [0.71, 0.51], 15, 23],
+      [[0.40, 0.57], [0.48, 0.70], [0.56, 0.77], [0.56, 0.73], 18, 27],
+      [[0.25, 0.72], [0.29, 0.81], [0.40, 0.82], [0.38, 0.76], 22, 30]
+    ]
+  },
+  {
+    name: "capricorn",
+    stars: [
+      [0.23, 0.54, 1, 0.82], [0.36, 0.35, 3, 0.9], [0.52, 0.37, 7, 0.82],
+      [0.65, 0.52, 12, 0.8], [0.58, 0.70, 17, 0.76], [0.42, 0.72, 21, 0.72],
+      [0.74, 0.70, 25, 0.64], [0.80, 0.55, 28, 0.58]
+    ],
+    paths: [
+      [[0.23, 0.54], [0.28, 0.40], [0.35, 0.32], [0.36, 0.35], 1, 8],
+      [[0.36, 0.35], [0.48, 0.25], [0.61, 0.34], [0.65, 0.52], 6, 14],
+      [[0.65, 0.52], [0.68, 0.67], [0.56, 0.76], [0.42, 0.72], 12, 21],
+      [[0.42, 0.72], [0.56, 0.84], [0.78, 0.79], [0.74, 0.70], 20, 28],
+      [[0.74, 0.70], [0.89, 0.62], [0.84, 0.48], [0.66, 0.52], 24, 30],
+      [[0.34, 0.35], [0.33, 0.22], [0.42, 0.24], [0.39, 0.36], 26, 30]
+    ]
+  },
+  {
+    name: "aquarius",
+    stars: [
+      [0.20, 0.39, 1, 0.72], [0.34, 0.32, 4, 0.72], [0.49, 0.40, 8, 0.72],
+      [0.64, 0.33, 12, 0.72], [0.80, 0.40, 16, 0.72], [0.20, 0.62, 18, 0.68],
+      [0.36, 0.55, 21, 0.68], [0.52, 0.64, 24, 0.68], [0.68, 0.56, 27, 0.68],
+      [0.82, 0.63, 29, 0.68]
+    ],
+    paths: [
+      [[0.20, 0.39], [0.27, 0.30], [0.36, 0.28], [0.49, 0.40], 1, 11],
+      [[0.49, 0.40], [0.58, 0.48], [0.65, 0.25], [0.80, 0.40], 10, 18],
+      [[0.20, 0.62], [0.28, 0.52], [0.38, 0.51], [0.52, 0.64], 17, 25],
+      [[0.52, 0.64], [0.61, 0.72], [0.70, 0.48], [0.82, 0.63], 23, 30]
+    ]
+  },
+  {
+    name: "pisces",
+    stars: [
+      [0.31, 0.35, 1, 0.85], [0.44, 0.27, 4, 0.72], [0.54, 0.38, 8, 0.72],
+      [0.72, 0.62, 12, 0.85], [0.59, 0.72, 16, 0.72], [0.49, 0.61, 20, 0.72],
+      [0.50, 0.50, 23, 0.8], [0.23, 0.45, 26, 0.6], [0.80, 0.53, 28, 0.6]
+    ],
+    paths: [
+      [[0.31, 0.35], [0.38, 0.21], [0.53, 0.24], [0.54, 0.38], 1, 9],
+      [[0.54, 0.38], [0.46, 0.51], [0.34, 0.51], [0.31, 0.35], 8, 16],
+      [[0.72, 0.62], [0.65, 0.78], [0.50, 0.76], [0.49, 0.61], 12, 21],
+      [[0.49, 0.61], [0.57, 0.48], [0.69, 0.48], [0.72, 0.62], 19, 27],
+      [[0.43, 0.43], [0.49, 0.48], [0.55, 0.53], [0.61, 0.57], 22, 30],
+      [[0.23, 0.45], [0.30, 0.39], [0.35, 0.40], [0.31, 0.35], 25, 30],
+      [[0.80, 0.53], [0.73, 0.59], [0.68, 0.58], [0.72, 0.62], 27, 30]
+    ]
+  },
+  {
+    name: "aries",
+    stars: [
+      [0.50, 0.37, 1, 1], [0.35, 0.26, 4, 0.82], [0.23, 0.40, 8, 0.72],
+      [0.65, 0.26, 11, 0.82], [0.77, 0.40, 15, 0.72], [0.42, 0.62, 19, 0.68],
+      [0.58, 0.62, 22, 0.68], [0.50, 0.78, 27, 0.62]
+    ],
+    paths: [
+      [[0.50, 0.37], [0.44, 0.21], [0.28, 0.18], [0.23, 0.40], 1, 11],
+      [[0.50, 0.37], [0.56, 0.21], [0.72, 0.18], [0.77, 0.40], 8, 18],
+      [[0.50, 0.37], [0.45, 0.50], [0.42, 0.58], [0.42, 0.62], 17, 24],
+      [[0.50, 0.37], [0.55, 0.50], [0.58, 0.58], [0.58, 0.62], 20, 27],
+      [[0.42, 0.62], [0.44, 0.73], [0.52, 0.80], [0.58, 0.62], 25, 30]
+    ]
+  },
+  {
+    name: "taurus",
+    stars: [
+      [0.50, 0.48, 1, 1], [0.35, 0.38, 4, 0.82], [0.65, 0.38, 8, 0.82],
+      [0.31, 0.18, 11, 0.72], [0.69, 0.18, 14, 0.72], [0.40, 0.66, 19, 0.68],
+      [0.60, 0.66, 22, 0.68], [0.50, 0.78, 27, 0.62]
+    ],
+    paths: [
+      [[0.50, 0.48], [0.35, 0.35], [0.34, 0.60], [0.40, 0.66], 1, 12],
+      [[0.50, 0.48], [0.65, 0.35], [0.66, 0.60], [0.60, 0.66], 7, 18],
+      [[0.35, 0.38], [0.22, 0.27], [0.22, 0.16], [0.31, 0.18], 10, 19],
+      [[0.65, 0.38], [0.78, 0.27], [0.78, 0.16], [0.69, 0.18], 13, 22],
+      [[0.40, 0.66], [0.45, 0.78], [0.55, 0.78], [0.60, 0.66], 20, 30]
+    ]
+  },
+  {
+    name: "gemini",
+    stars: [
+      [0.35, 0.24, 1, 0.85], [0.64, 0.24, 4, 0.85], [0.33, 0.74, 8, 0.78],
+      [0.66, 0.74, 12, 0.78], [0.47, 0.30, 16, 0.65], [0.53, 0.69, 19, 0.65],
+      [0.25, 0.47, 23, 0.58], [0.75, 0.47, 26, 0.58]
+    ],
+    paths: [
+      [[0.35, 0.24], [0.43, 0.20], [0.56, 0.20], [0.64, 0.24], 1, 9],
+      [[0.33, 0.74], [0.42, 0.79], [0.58, 0.79], [0.66, 0.74], 8, 16],
+      [[0.35, 0.24], [0.31, 0.39], [0.30, 0.58], [0.33, 0.74], 12, 22],
+      [[0.64, 0.24], [0.68, 0.39], [0.69, 0.58], [0.66, 0.74], 15, 25],
+      [[0.47, 0.30], [0.45, 0.43], [0.45, 0.57], [0.47, 0.69], 20, 28],
+      [[0.53, 0.30], [0.55, 0.43], [0.55, 0.57], [0.53, 0.69], 23, 30]
+    ]
+  },
+  {
+    name: "cancer",
+    stars: [
+      [0.36, 0.38, 1, 0.85], [0.50, 0.30, 5, 0.72], [0.64, 0.39, 9, 0.85],
+      [0.62, 0.61, 14, 0.85], [0.48, 0.70, 18, 0.72], [0.34, 0.61, 22, 0.85],
+      [0.22, 0.48, 25, 0.58], [0.78, 0.51, 28, 0.58]
+    ],
+    paths: [
+      [[0.36, 0.38], [0.43, 0.25], [0.58, 0.24], [0.64, 0.39], 1, 10],
+      [[0.64, 0.39], [0.79, 0.45], [0.73, 0.66], [0.62, 0.61], 9, 18],
+      [[0.62, 0.61], [0.54, 0.77], [0.39, 0.77], [0.34, 0.61], 16, 25],
+      [[0.34, 0.61], [0.20, 0.55], [0.27, 0.34], [0.36, 0.38], 21, 30],
+      [[0.34, 0.50], [0.27, 0.44], [0.21, 0.44], [0.22, 0.48], 24, 30],
+      [[0.66, 0.50], [0.73, 0.56], [0.79, 0.55], [0.78, 0.51], 27, 30]
+    ]
+  }
+];
+
 function drawBackdrop(time) {
   const bg = ctx.createLinearGradient(0, 0, width, height);
   bg.addColorStop(0, "#020510");
@@ -184,19 +368,19 @@ function drawBackdrop(time) {
   }
 }
 
-function getTargetRect() {
-  const imageAspect = targetImage.naturalWidth / targetImage.naturalHeight;
+function getBoardRect() {
+  const boardAspect = GRID_COLS / GRID_ROWS;
   const cssWidth = width / ratio;
   const availableTop = 52 * ratio;
   const availableBottom = 14 * ratio;
-  const availableWidth = Math.min(width - 38 * ratio, 300 * ratio);
+  const availableWidth = Math.min(width - 38 * ratio, 340 * ratio);
   const availableHeight = height - availableTop - availableBottom;
   let drawWidth = availableWidth;
-  let drawHeight = drawWidth / imageAspect;
+  let drawHeight = drawWidth / boardAspect;
 
   if (drawHeight > availableHeight) {
     drawHeight = availableHeight;
-    drawWidth = drawHeight * imageAspect;
+    drawWidth = drawHeight * boardAspect;
   }
 
   return {
@@ -205,13 +389,6 @@ function getTargetRect() {
     w: drawWidth,
     h: drawHeight
   };
-}
-
-function drawTargetImage(rect, alpha = 1) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.drawImage(targetImage, rect.x, rect.y, rect.w, rect.h);
-  ctx.restore();
 }
 
 function withCellClip(renderCtx, rect, cellIndex, draw) {
@@ -234,79 +411,107 @@ function withCellClip(renderCtx, rect, cellIndex, draw) {
   renderCtx.restore();
 }
 
-function drawRevealMask(renderCtx, cell, cellIndex, progress, time) {
-  const anchors = 3 + (cellIndex % 4);
-  const sweep = ease((progress - 0.12) / 0.76);
+function pointInCell(cell, point) {
+  return {
+    x: cell.x + point[0] * cell.w,
+    y: cell.y + point[1] * cell.h
+  };
+}
 
-  renderCtx.fillStyle = "rgba(255, 255, 255, 0.18)";
-  renderCtx.fillRect(cell.x, cell.y, cell.w * sweep, cell.h);
+function cubicAt(path, t) {
+  const p0 = path[0];
+  const p1 = path[1];
+  const p2 = path[2];
+  const p3 = path[3];
+  const u = 1 - t;
+  return [
+    u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+    u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]
+  ];
+}
 
-  for (let i = 0; i < anchors; i += 1) {
-    const appear = ease((progress - i * 0.09) / 0.34);
-    if (appear <= 0) continue;
+function drawPartialCurve(renderCtx, cell, path, progress) {
+  const steps = 34;
+  const first = pointInCell(cell, cubicAt(path, 0));
 
-    const ax = cell.x + (0.18 + seeded(cellIndex * 21 + i) * 0.64) * cell.w;
-    const ay = cell.y + (0.18 + seeded(cellIndex * 27 + i) * 0.64) * cell.h;
-    const pulse = 0.92 + Math.sin(time * 0.9 + cellIndex + i) * 0.08;
-    const radius = (cell.w * (0.13 + i * 0.028)) * appear * pulse;
+  renderCtx.beginPath();
+  renderCtx.moveTo(first.x, first.y);
 
-    const glow = renderCtx.createRadialGradient(ax, ay, 0, ax, ay, radius);
-    glow.addColorStop(0, "rgba(255, 255, 255, 1)");
-    glow.addColorStop(0.42, "rgba(255, 255, 255, 0.62)");
-    glow.addColorStop(1, "rgba(255, 255, 255, 0)");
-    renderCtx.fillStyle = glow;
-    renderCtx.beginPath();
-    renderCtx.arc(ax, ay, radius, 0, Math.PI * 2);
-    renderCtx.fill();
+  for (let i = 1; i <= steps * progress; i += 1) {
+    const p = pointInCell(cell, cubicAt(path, i / steps));
+    renderCtx.lineTo(p.x, p.y);
   }
 
-  if (progress > 0.72) {
-    renderCtx.fillStyle = `rgba(255, 255, 255, ${(progress - 0.72) / 0.28})`;
-    renderCtx.fillRect(cell.x, cell.y, cell.w, cell.h);
+  const exact = pointInCell(cell, cubicAt(path, progress));
+  renderCtx.lineTo(exact.x, exact.y);
+  renderCtx.stroke();
+}
+
+function drawStar(renderCtx, cell, star, time, signIndex) {
+  const appear = ease((day - star[2]) / 4);
+  if (appear <= 0) return;
+
+  const p = pointInCell(cell, star);
+  const pulse = 0.9 + Math.sin(time * 1.25 + signIndex * 0.7 + star[0] * 8) * 0.1;
+  const core = cell.w * 0.014 * star[3] * appear * pulse;
+  const halo = core * 5.6;
+
+  const glow = renderCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, halo);
+  glow.addColorStop(0, `rgba(255, 255, 255, ${0.78 * appear})`);
+  glow.addColorStop(0.32, `rgba(255, 255, 255, ${0.28 * appear})`);
+  glow.addColorStop(1, "rgba(255, 255, 255, 0)");
+  renderCtx.fillStyle = glow;
+  renderCtx.beginPath();
+  renderCtx.arc(p.x, p.y, halo, 0, Math.PI * 2);
+  renderCtx.fill();
+
+  renderCtx.fillStyle = `rgba(255, 255, 255, ${0.94 * appear})`;
+  renderCtx.beginPath();
+  renderCtx.arc(p.x, p.y, Math.max(0.85 * ratio, core), 0, Math.PI * 2);
+  renderCtx.fill();
+}
+
+function drawSign(renderCtx, cell, sign, signIndex, time) {
+  const lineWidth = Math.max(0.65 * ratio, cell.w * 0.008);
+
+  renderCtx.save();
+  renderCtx.lineCap = "round";
+  renderCtx.lineJoin = "round";
+  renderCtx.shadowColor = "rgba(255, 255, 255, 0.34)";
+  renderCtx.shadowBlur = 5 * ratio;
+  renderCtx.strokeStyle = "rgba(255, 255, 255, 0.86)";
+  renderCtx.lineWidth = lineWidth;
+
+  for (const path of sign.paths) {
+    const pathProgress = ease((day - path[4]) / (path[5] - path[4]));
+    if (pathProgress <= 0) continue;
+    renderCtx.globalAlpha = 0.28 + pathProgress * 0.72;
+    drawPartialCurve(renderCtx, cell, path, pathProgress);
   }
+
+  renderCtx.shadowBlur = 0;
+  renderCtx.globalAlpha = 1;
+
+  for (const star of sign.stars) {
+    drawStar(renderCtx, cell, star, time, signIndex);
+  }
+
+  renderCtx.restore();
 }
 
 function drawProgression(rect, time) {
-  const progress = day / 30;
-
-  if (progress >= 0.995) {
-    drawTargetImage(rect, 1);
-    return;
+  for (let cellIndex = 0; cellIndex < SIGNS.length; cellIndex += 1) {
+    withCellClip(ctx, rect, cellIndex, (cell) => {
+      drawSign(ctx, cell, SIGNS[cellIndex], cellIndex, time);
+    });
   }
-
-  // The target image is the source of truth; this faint pass keeps the final composition visible while progress is low.
-  drawTargetImage(rect, 0.1 + progress * 0.05);
-
-  const mask = document.createElement("canvas");
-  mask.width = width;
-  mask.height = height;
-  const maskCtx = mask.getContext("2d");
-
-  if (!maskCtx) {
-    return;
-  }
-
-  for (let cellIndex = 0; cellIndex < GRID_COLS * GRID_ROWS; cellIndex += 1) {
-    const localProgress = ease((progress + 0.1 - cellIndex * 0.006) / 0.78);
-    withCellClip(maskCtx, rect, cellIndex, (cell) => drawRevealMask(maskCtx, cell, cellIndex, localProgress, time));
-  }
-
-  ctx.save();
-  ctx.drawImage(targetImage, rect.x, rect.y, rect.w, rect.h);
-  ctx.globalCompositeOperation = "destination-in";
-  ctx.drawImage(mask, 0, 0);
-  ctx.restore();
 }
 
 function render() {
   const time = (performance.now() - startedAt) / 1000;
 
   drawBackdrop(time);
-
-  if (targetLoaded) {
-    const rect = getTargetRect();
-    drawProgression(rect, time);
-  }
+  drawProgression(getBoardRect(), time);
 
   requestAnimationFrame(render);
 }
