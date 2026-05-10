@@ -1,3 +1,4 @@
+{
 const SETTINGS_KEY = "focusMode";
 const DEFAULT_FOCUS_MODE = true;
 
@@ -10,8 +11,18 @@ function applyIcon(focusMode: boolean): void {
   chrome.action.setIcon({ path: focusMode ? ICON_FOCUSED : ICON_DISTRACTED });
 }
 
+function setFocusMode(focusMode: boolean): void {
+  chrome.storage.sync.set({ [SETTINGS_KEY]: focusMode });
+}
+
 chrome.storage.sync.get(SETTINGS_KEY, (result: StorageResult) => {
   applyIcon(result[SETTINGS_KEY] ?? DEFAULT_FOCUS_MODE);
+});
+
+chrome.action.onClicked.addListener(() => {
+  chrome.storage.sync.get(SETTINGS_KEY, (result: StorageResult) => {
+    setFocusMode(!(result[SETTINGS_KEY] ?? DEFAULT_FOCUS_MODE));
+  });
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -19,3 +30,4 @@ chrome.storage.onChanged.addListener((changes, area) => {
     applyIcon((changes[SETTINGS_KEY].newValue as boolean) ?? DEFAULT_FOCUS_MODE);
   }
 });
+}

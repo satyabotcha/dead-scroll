@@ -52,3 +52,7 @@
 ### 2026-05-10 Zodiac progression should be drawn, not masked
 **Context:** The image-mask prototype matched the generated board composition but made progression feel like a fade reveal.
 **Learning:** The progression prototype needs real vector data: stars unlock by day, curved strokes draw between them, and the generated image only guides the day-30 composition. Avoid image fades for this interaction.
+
+### 2026-05-10 Background service worker shares TS script scope too
+**Context:** We added a Manifest V3 background worker to toggle Focus Mode from the toolbar icon.
+**Learning:** `src/background.ts` is also compiled as a plain global script, so top-level function names can collide with content scripts. Wrap standalone extension scripts in a top-level block unless they are real modules.

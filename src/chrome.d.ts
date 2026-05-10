@@ -9,6 +9,9 @@ declare const chrome: {
   };
   action: {
     setIcon(details: { path: Record<string, string> }): void;
+    onClicked: {
+      addListener(callback: () => void): void;
+    };
   };
   storage: {
     sync: {
