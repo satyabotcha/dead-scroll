@@ -4,27 +4,26 @@ Dead Scroll is a Chrome extension for using YouTube intentionally. It removes ad
 
 The extension currently focuses on YouTube.
 
-## Replaces 7 Common YouTube Extensions
+## Replaces 7 Extensions
 
-Dead Scroll combines the core jobs of:
+| Extension | What Dead Scroll does instead |
+|---|---|
+| Unhook | Hides home feed, recommendation sidebar, end-screen suggestions, and Shorts everywhere |
+| uBlock Origin / AdBlock | Hides masthead/in-feed/overlay ads; auto-skips skippable ads and speeds through unskippable ones at 10x |
+| SponsorBlock | Skips all pre-roll and mid-roll ads (not sponsor segments) |
+| Dark Reader | Forces dark mode from the first pixel, with no white flash |
+| Autoplay Stopper | Disables autoplay on watch pages; restores it when Focus Mode is off |
+| Theater Mode Default | Auto-enables theater mode on every video |
+| DF YouTube | Hides comments, sidebar, mini guide, home feed header, and chip filters |
 
-Unhook, uBlock Origin / AdBlock, SponsorBlock for YouTube ads, Dark Reader, Autoplay Stopper, Theater Mode Default, and DF YouTube.
+## What It Adds
 
-It removes feeds, recommendations, Shorts, comments, common ads, autoplay, white flash, and cramped watch pages in one extension.
-
-## What It Does
-
-- Hides the YouTube home feed, recommendation rails, Shorts surfaces, comments, end-screen suggestions, and common ad surfaces.
-- Keeps the YouTube search box, search results, account controls, and direct video pages usable.
 - Replaces the YouTube home feed with a universe scene teeming with meteors.
 - Lets you toggle Focus Mode by pressing the cat icon in the extension toolbar.
 
-## Requirements
-
-- Google Chrome or another Chromium browser that supports Manifest V3 extensions.
-- Node.js and npm.
-
 ## Install From Source
+
+> Requires Chrome/Chromium (MV3) and Node.js + npm.
 
 1. Clone the repository:
 
