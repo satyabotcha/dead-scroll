@@ -4,6 +4,20 @@ Dead Scroll is a Chrome extension for using YouTube intentionally. It removes ad
 
 The extension currently focuses on YouTube.
 
+## Replaces 7 Common YouTube Extensions
+
+Dead Scroll rolls the core jobs of several YouTube cleanup extensions into one focused tool:
+
+| Extension | What Dead Scroll does |
+| --- | --- |
+| Unhook | Hides the homepage feed, recommendations sidebar, end-of-video suggestions, and Shorts surfaces. |
+| uBlock Origin / AdBlock | Hides common YouTube ad surfaces, auto-skips skippable video ads, and speeds through unskippable video ads. |
+| SponsorBlock, partially | Does not skip creator sponsor segments, but does handle YouTube pre-roll and mid-roll ad interruptions. |
+| Dark Reader | Forces YouTube dark mode from the first paint, including a document-start dark stamp to avoid white flash. |
+| Autoplay Stopper | Disables autoplay on watch pages while Focus Mode is on, then restores it when Focus Mode is off. |
+| Theater Mode Default | Automatically enables theater mode on watch pages. |
+| DF YouTube / Distraction Free | Hides comments, sidebars, mini guide, home feed headers, chip filters, and other feed-like distractions. |
+
 ## What It Does
 
 - Hides the YouTube home feed, recommendation rails, Shorts surfaces, comments, end-screen suggestions, and common ad surfaces.
