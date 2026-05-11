@@ -6,17 +6,11 @@ The extension currently focuses on YouTube.
 
 ## Replaces 7 Common YouTube Extensions
 
-Dead Scroll rolls the core jobs of several YouTube cleanup extensions into one focused tool:
+Dead Scroll combines the core jobs of:
 
-| Extension | What Dead Scroll does |
-| --- | --- |
-| Unhook | Hides the homepage feed, recommendations sidebar, end-of-video suggestions, and Shorts surfaces. |
-| uBlock Origin / AdBlock | Hides common YouTube ad surfaces, auto-skips skippable video ads, and speeds through unskippable video ads. |
-| SponsorBlock, partially | Does not skip creator sponsor segments, but does handle YouTube pre-roll and mid-roll ad interruptions. |
-| Dark Reader | Forces YouTube dark mode from the first paint, including a document-start dark stamp to avoid white flash. |
-| Autoplay Stopper | Disables autoplay on watch pages while Focus Mode is on, then restores it when Focus Mode is off. |
-| Theater Mode Default | Automatically enables theater mode on watch pages. |
-| DF YouTube / Distraction Free | Hides comments, sidebars, mini guide, home feed headers, chip filters, and other feed-like distractions. |
+Unhook, uBlock Origin / AdBlock, SponsorBlock for YouTube ads, Dark Reader, Autoplay Stopper, Theater Mode Default, and DF YouTube.
+
+It removes feeds, recommendations, Shorts, comments, common ads, autoplay, white flash, and cramped watch pages in one extension.
 
 ## What It Does
 
