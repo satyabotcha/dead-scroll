@@ -1,5 +1,8 @@
 node_modules/
 launch/
+screenshots/
+.DS_Store
+*.zip
 agent.md
 agents.md
 AGENTS.md
