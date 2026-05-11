@@ -8,8 +8,8 @@ The extension currently focuses on YouTube.
 
 - Hides the YouTube home feed, recommendation rails, Shorts surfaces, comments, end-screen suggestions, and common ad surfaces.
 - Keeps the YouTube search box, search results, account controls, and direct video pages usable.
-- Adds a calm focus canvas on the YouTube home page instead of a feed.
-- Lets you toggle Focus Mode from the extension toolbar icon or popup.
+- Replaces the YouTube home feed with a universe scene teeming with meteors.
+- Lets you toggle Focus Mode by pressing the cat icon in the extension toolbar.
 
 ## Requirements
 
@@ -55,8 +55,7 @@ The `production/` folder is the Chrome-loadable extension output.
 
 1. Visit [youtube.com](https://www.youtube.com/).
 2. Focus Mode is on by default.
-3. Click the Dead Scroll toolbar icon to toggle Focus Mode on or off.
-4. You can also open the extension popup and use the **Focus** switch.
+3. Press the cat icon in the extension toolbar to toggle Focus Mode on or off.
 
 When Focus Mode is on, YouTube remains usable for intentional search and watching, but feed-like surfaces are hidden.
 
