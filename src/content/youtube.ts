@@ -94,14 +94,13 @@ const CALM_BACKGROUND_TEST_OVERRIDE_KEY = "deadScrollCalmBackground";
 const CALM_BACKGROUNDS = [
   {
     key: "universe",
-    imagePath: "assets/backgrounds/universe_background.png",
-    fallbackImagePath: "assets/universe_background.png",
+    imagePath: "assets/backgrounds/universe_background_hd.webp",
     positionX: 62,
     positionY: 52
   },
   {
     key: "desert",
-    imagePath: "assets/backgrounds/desert_background_hd.png",
+    imagePath: "assets/backgrounds/desert_background_hd.webp",
     positionX: 58,
     positionY: 50
   }
@@ -628,22 +627,6 @@ function loadBgImage(): void {
     if (calmCanvasShell) {
       calmCanvasShell.style.backgroundImage = `url("${url}")`;
     }
-  };
-  img.onerror = () => {
-    if (!("fallbackImagePath" in activeCalmBackground)) {
-      return;
-    }
-
-    const fallbackUrl = chrome.runtime.getURL(activeCalmBackground.fallbackImagePath);
-    img.onerror = null;
-    img.onload = () => {
-      bgImageLoaded = true;
-      calmBackgroundImageUrl = fallbackUrl;
-      if (calmCanvasShell) {
-        calmCanvasShell.style.backgroundImage = `url("${fallbackUrl}")`;
-      }
-    };
-    img.src = fallbackUrl;
   };
 }
 

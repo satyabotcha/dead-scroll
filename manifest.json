@@ -23,7 +23,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["assets/universe_background.png", "assets/backgrounds/*.png"],
+      "resources": ["assets/backgrounds/*.webp"],
       "matches": ["https://www.youtube.com/*"]
     }
   ],
