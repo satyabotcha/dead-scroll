@@ -90,6 +90,22 @@ const CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO = 2;
 const CALM_CANVAS_FRAME_INTERVAL_MS = 1000 / 24;
 const YOUTUBE_MASTHEAD_HEIGHT_PX = 56;
 const YOUTUBE_DEFAULT_FOCUS_MODE = true;
+const CALM_BACKGROUND_TEST_OVERRIDE_KEY = "deadScrollCalmBackground";
+const CALM_BACKGROUNDS = [
+  {
+    key: "universe",
+    imagePath: "assets/backgrounds/universe_background.png",
+    fallbackImagePath: "assets/universe_background.png",
+    positionX: 62,
+    positionY: 52
+  },
+  {
+    key: "desert",
+    imagePath: "assets/backgrounds/desert_background_hd.png",
+    positionX: 58,
+    positionY: 50
+  }
+] as const;
 const AUTOPLAY_TOGGLE_SELECTOR = ".ytp-autonav-toggle-button[aria-checked]";
 const AUTOPLAY_CLICK_COOLDOWN_MS = 750;
 const AD_SKIP_BUTTON_SELECTOR = [
@@ -135,6 +151,8 @@ let mutedBeforeAd = false;
 let calmCanvasAnimationFrame = 0;
 let calmCanvasResizeObserver: ResizeObserver | null = null;
 let calmCanvasLastFrameAt = 0;
+let activeCalmBackground = getDailyCalmBackground();
+let calmBackgroundImageUrl = "";
 
 function installFeedBlocker(): void {
   const existingStyle = document.getElementById(STYLE_ID);
@@ -318,6 +336,32 @@ function seededRand(seed: number): number {
   return x - Math.floor(x);
 }
 
+function getLocalDayNumber(date = new Date()): number {
+  return Math.floor(new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() / 86400000);
+}
+
+function getDailyCalmBackground(): (typeof CALM_BACKGROUNDS)[number] {
+  const testBackground = getCalmBackgroundTestOverride();
+
+  if (testBackground) {
+    return testBackground;
+  }
+
+  return CALM_BACKGROUNDS[getLocalDayNumber() % CALM_BACKGROUNDS.length];
+}
+
+function getCalmBackgroundTestOverride(): (typeof CALM_BACKGROUNDS)[number] | null {
+  try {
+    const requestedKey = window.localStorage.getItem(CALM_BACKGROUND_TEST_OVERRIDE_KEY);
+    return CALM_BACKGROUNDS.find((background) => background.key === requestedKey) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function getCalmBackgroundUrl(): string {
+  return chrome.runtime.getURL(activeCalmBackground.imagePath);
+}
 
 function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   const ctx = canvas.getContext("2d");
@@ -340,17 +384,18 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   // background-position each frame for parallax, then draw a darkening
   // overlay on the canvas so the animation layers stay readable.
   if (bgImageLoaded && calmCanvasShell) {
-    const driftX = Math.sin(t * 0.042) * 0.55;  // percent — ~8px on a 1440px viewport
-    const driftY = Math.cos(t * 0.031) * 0.40;
-    calmCanvasShell.style.backgroundPosition = `${62 + driftX}% ${52 + driftY}%`;
-    ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+    const driftScale = activeCalmBackground.key === "desert" ? 0.72 : 1;
+    const driftX = Math.sin(t * 0.042) * 0.55 * driftScale;
+    const driftY = Math.cos(t * 0.031) * 0.40 * driftScale;
+    calmCanvasShell.style.backgroundPosition = `${activeCalmBackground.positionX + driftX}% ${activeCalmBackground.positionY + driftY}%`;
+    ctx.fillStyle = activeCalmBackground.key === "desert" ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.22)";
     ctx.fillRect(0, 0, width, height);
   }
 
   // ── Accretion disk pulse ─────────────────────────────────────────────────
   // Warm orange-gold ring breathes around the black hole (~12-second cycle).
   // The inner gradient is transparent so the dark core stays dark.
-  if (bgImageLoaded) {
+  if (bgImageLoaded && activeCalmBackground.key === "universe") {
     const bhX    = width  * 0.625;
     const bhY    = height * 0.415;
     const bhMin  = Math.min(width, height);
@@ -372,7 +417,7 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
   // Alpha = sin(π·progress) — smooth fade-in and fade-out, no hard cuts.
 
   // One regular meteor every ~35 s — infrequent enough to feel like a moment
-  {
+  if (activeCalmBackground.key === "universe") {
     const period     = 35;
     const activeFrac = 0.13;
     const seed       = Math.floor(t / period);
@@ -405,7 +450,7 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
 
   // ── Rare long meteors (2) ────────────────────────────────────────────────
   // Dramatic, slower, longer — also start from the upper-left zone.
-  { // Rare #1 — ~65s cycle
+  if (activeCalmBackground.key === "universe") { // Rare #1 — ~65s cycle
     const period     = 65;
     const activeFrac = 0.042;
     const rareSeed   = Math.floor(t / period);
@@ -432,7 +477,7 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     }
   }
 
-  { // Rare #2 — ~90s cycle, offset so the two rares never coincide
+  if (activeCalmBackground.key === "universe") { // Rare #2 — ~90s cycle, offset so the two rares never coincide
     const period     = 90;
     const activeFrac = 0.038;
     const tOff       = t + 38;
@@ -460,13 +505,57 @@ function drawCalmCanvas(canvas: HTMLCanvasElement, timestamp: number): void {
     }
   }
 
+  if (bgImageLoaded && activeCalmBackground.key === "desert") {
+    const sunX = width * 0.705;
+    const sunY = height * 0.475;
+    const glowWave = Math.sin(t * 0.28) * 0.5 + 0.5;
+    const glowRadius = Math.max(width, height) * (0.23 + glowWave * 0.018);
+    const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, glowRadius);
+    sunGlow.addColorStop(0, `rgba(255, 225, 150, ${0.18 + glowWave * 0.055})`);
+    sunGlow.addColorStop(0.28, `rgba(238, 166, 72, ${0.09 + glowWave * 0.03})`);
+    sunGlow.addColorStop(1, "rgba(238, 166, 72, 0)");
+    ctx.fillStyle = sunGlow;
+    ctx.fillRect(0, 0, width, height);
+
+    // The sand layer stays low and wide so responsive crops feel windy without
+    // covering the search-first YouTube surface.
+    for (let i = 0; i < 26; i += 1) {
+      const seed = 7200 + i * 17;
+      const baseY = height * (0.64 + seededRand(seed) * 0.28);
+      const speed = 0.032 + seededRand(seed + 1) * 0.045;
+      const phase = (seededRand(seed + 2) + t * speed) % 1;
+      const bandWidth = width * (0.18 + seededRand(seed + 3) * 0.32);
+      const startX = phase * (width + bandWidth * 2) - bandWidth;
+      const endX = startX + bandWidth;
+      const lift = Math.sin(t * 0.22 + i) * height * 0.012;
+      const alpha = 0.042 + seededRand(seed + 4) * 0.075;
+      const sandGrad = ctx.createLinearGradient(startX, baseY + lift, endX, baseY + lift);
+      sandGrad.addColorStop(0, "rgba(245, 183, 92, 0)");
+      sandGrad.addColorStop(0.42, `rgba(245, 183, 92, ${alpha})`);
+      sandGrad.addColorStop(1, "rgba(245, 183, 92, 0)");
+      ctx.beginPath();
+      ctx.moveTo(startX, baseY + lift);
+      ctx.bezierCurveTo(
+        startX + bandWidth * 0.3,
+        baseY + lift - height * 0.018,
+        startX + bandWidth * 0.68,
+        baseY + lift + height * 0.014,
+        endX,
+        baseY + lift
+      );
+      ctx.strokeStyle = sandGrad;
+      ctx.lineWidth = (1.6 + seededRand(seed + 5) * 4.4) * ratio;
+      ctx.stroke();
+    }
+  }
+
   // ── Vignette ─────────────────────────────────────────────────────────────
   const vignette = ctx.createRadialGradient(
     width * 0.5, height * 0.5, Math.min(width, height) * 0.3,
     width * 0.5, height * 0.5, Math.max(width, height) * 0.72
   );
   vignette.addColorStop(0, "rgba(0,0,0,0)");
-  vignette.addColorStop(1, "rgba(0,0,0,0.52)");
+  vignette.addColorStop(1, activeCalmBackground.key === "desert" ? "rgba(0,0,0,0.34)" : "rgba(0,0,0,0.52)");
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, width, height);
 }
@@ -517,7 +606,7 @@ function ensureCalmCanvas(focusMode: boolean): void {
 
   // If the image already loaded before this canvas was created, apply it now
   if (bgImageLoaded) {
-    shell.style.backgroundImage = `url("${chrome.runtime.getURL("assets/universe_background.png")}")`;
+    shell.style.backgroundImage = `url("${calmBackgroundImageUrl || getCalmBackgroundUrl()}")`;
   }
 
   calmCanvasResizeObserver = new ResizeObserver(() => resizeCalmCanvas(canvas));
@@ -527,16 +616,34 @@ function ensureCalmCanvas(focusMode: boolean): void {
 }
 
 function loadBgImage(): void {
-  const url = chrome.runtime.getURL("assets/universe_background.png");
+  activeCalmBackground = getDailyCalmBackground();
+  const url = getCalmBackgroundUrl();
   const img = new Image();
   img.src = url;
   img.onload = () => {
     bgImageLoaded = true;
+    calmBackgroundImageUrl = url;
     // Set background-image on the shell so the browser renders it at native
     // DPR quality — far sharper than canvas drawImage scaling.
     if (calmCanvasShell) {
       calmCanvasShell.style.backgroundImage = `url("${url}")`;
     }
+  };
+  img.onerror = () => {
+    if (!("fallbackImagePath" in activeCalmBackground)) {
+      return;
+    }
+
+    const fallbackUrl = chrome.runtime.getURL(activeCalmBackground.fallbackImagePath);
+    img.onerror = null;
+    img.onload = () => {
+      bgImageLoaded = true;
+      calmBackgroundImageUrl = fallbackUrl;
+      if (calmCanvasShell) {
+        calmCanvasShell.style.backgroundImage = `url("${fallbackUrl}")`;
+      }
+    };
+    img.src = fallbackUrl;
   };
 }
 
