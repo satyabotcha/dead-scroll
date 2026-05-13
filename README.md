@@ -107,7 +107,7 @@ The build script deletes and recreates `production/`, copies the source manifest
 
 ## Notes For Contributors
 
-- Read `AGENTS.md`, `soul.md`, and `learnings.md` before making non-trivial changes.
+- Read `AGENTS.md` before making non-trivial changes.
 - YouTube's DOM shifts often. Prefer narrow selectors and live DOM checks over broad container hiding.
 - Keep direct navigation, search results, account controls, and video playback intact.
 - If new assets need to be rendered inside YouTube, add them to `manifest.json` `web_accessible_resources`.
