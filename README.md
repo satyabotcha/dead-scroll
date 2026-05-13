@@ -1,16 +1,15 @@
 # Dead Scroll
 
-Dead Scroll is a Chrome extension for using YouTube intentionally. It removes addictive feed surfaces while preserving search, direct navigation, and video watching.
+Dead Scroll is a Chrome extension for using YouTube intentionally. It removes addictive feed surfaces while preserving search, direct navigation, account access, and video watching.
 
 The extension currently focuses on YouTube.
 
-## Replaces 7 Extensions
+## What It Replaces
 
 | Extension | What Dead Scroll does instead |
 |---|---|
 | Unhook | Hides home feed, recommendation sidebar, end-screen suggestions, and Shorts everywhere |
-| uBlock Origin / AdBlock | Hides masthead/in-feed/overlay ads; auto-skips skippable ads and speeds through unskippable ones at 10x |
-| SponsorBlock | Skips all pre-roll and mid-roll ads (not sponsor segments) |
+| uBlock Origin / AdBlock | Hides common YouTube ad surfaces; auto-skips skippable ads and speeds through active player ads at 10x |
 | Dark Reader | Forces dark mode from the first pixel, with no white flash |
 | Autoplay Stopper | Disables autoplay on watch pages; restores it when Focus Mode is off |
 | Theater Mode Default | Auto-enables theater mode on every video |
@@ -18,8 +17,10 @@ The extension currently focuses on YouTube.
 
 ## What It Adds
 
-- Replaces the YouTube home feed with a universe scene teeming with meteors.
+- Replaces the YouTube home feed with a calm visual scene below the masthead.
+- Rotates bundled WebP wallpapers, currently including universe and desert scenes.
 - Lets you toggle Focus Mode by pressing the cat icon in the extension toolbar.
+- Stores only the Focus Mode preference through Chrome extension storage.
 
 ## Install From Source
 
@@ -77,16 +78,39 @@ npm run typecheck
 npm run build
 ```
 
-After making changes, run `npm run build`, then reload the unpacked extension from `chrome://extensions`.
+After making changes, run `npm run typecheck`, then `npm run build`, then reload the unpacked extension from `chrome://extensions`.
+
+Do not edit generated JavaScript in `production/` directly. Update the TypeScript source, rebuild, and load the regenerated `production/` folder.
 
 ## Project Structure
 
 ```text
-src/              TypeScript source and static extension assets
-production/       Generated Chrome extension output
-manifest.json     Source extension manifest
-tsconfig.json     TypeScript compiler config
+.
+├── manifest.json                     Source Chrome Extension MV3 manifest
+├── package.json                      npm scripts and TypeScript dependency
+├── scripts/
+│   └── build.js                      Rebuilds production/ from source files
+├── src/
+│   ├── background.ts                 Toolbar toggle, icon state, and Focus Mode storage
+│   ├── chrome.d.ts                   Minimal Chrome API typings used by the extension
+│   ├── assets/                       Source icons and bundled images
+│   │   └── backgrounds/              Calm home wallpapers served to YouTube pages
+│   └── content/
+│       ├── youtube.ts                Main YouTube cleanup and calm canvas logic
+│       ├── youtube-dark.ts           First-paint dark-mode stamp
+│       └── youtube-early.css         First-paint near-black background
+├── production/                       Generated Chrome-loadable extension output
+└── tsconfig.json                     TypeScript compiler config
 ```
+
+The build script deletes and recreates `production/`, copies the source manifest/assets/CSS, and runs `tsc` so Chrome can load the compiled extension.
+
+## Notes For Contributors
+
+- Read `AGENTS.md`, `soul.md`, and `learnings.md` before making non-trivial changes.
+- YouTube's DOM shifts often. Prefer narrow selectors and live DOM checks over broad container hiding.
+- Keep direct navigation, search results, account controls, and video playback intact.
+- If new assets need to be rendered inside YouTube, add them to `manifest.json` `web_accessible_resources`.
 
 ## Privacy
 
