@@ -11,6 +11,7 @@ The current product scope is YouTube only. X/Twitter and LinkedIn experiments ex
 - Remove feeds, not the whole site. Preserve intentional use.
 - Prefer native YouTube controls where possible instead of rebuilding YouTube.
 - Keep the extension small: no backend, no analytics, no database, no bundled framework.
+- Avoid outside dependencies and npm packages wherever possible. Build from scratch by default to reduce supply-chain risk, spyware exposure, and credential-leak surface area.
 - Hand-written source lives in `src/`; Chrome-loadable output lives in `production/`.
 - If a selector or hide rule risks breaking search, masthead, account controls, or direct video watching, narrow it.
 
