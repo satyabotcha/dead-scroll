@@ -90,19 +90,20 @@ const CALM_CANVAS_MAX_DEVICE_PIXEL_RATIO = 2;
 const CALM_CANVAS_FRAME_INTERVAL_MS = 1000 / 24;
 const YOUTUBE_MASTHEAD_HEIGHT_PX = 56;
 const YOUTUBE_DEFAULT_FOCUS_MODE = true;
-const CALM_BACKGROUND_TEST_OVERRIDE_KEY = "deadScrollCalmBackground";
+const CALM_BACKGROUND_ROTATION_START_DAY_KEY = "deadScrollCalmBackgroundRotationStartDay";
+const CALM_BACKGROUND_ROTATION_START_INDEX_KEY = "deadScrollCalmBackgroundRotationStartIndex";
 const CALM_BACKGROUNDS = [
-  {
-    key: "universe",
-    imagePath: "assets/backgrounds/universe_background_hd.webp",
-    positionX: 62,
-    positionY: 52
-  },
   {
     key: "desert",
     imagePath: "assets/backgrounds/desert_background_hd.webp",
     positionX: 58,
     positionY: 50
+  },
+  {
+    key: "universe",
+    imagePath: "assets/backgrounds/universe_background_hd.webp",
+    positionX: 62,
+    positionY: 52
   }
 ] as const;
 const AUTOPLAY_TOGGLE_SELECTOR = ".ytp-autonav-toggle-button[aria-checked]";
@@ -340,21 +341,50 @@ function getLocalDayNumber(date = new Date()): number {
 }
 
 function getDailyCalmBackground(): (typeof CALM_BACKGROUNDS)[number] {
-  const testBackground = getCalmBackgroundTestOverride();
+  const daysSinceRotationStart = getLocalDayNumber() - getCalmBackgroundRotationStartDay();
+  const rotationStartIndex = getCalmBackgroundRotationStartIndex();
+  // Keep dates before the anchor stable too, instead of letting negative modulo pick no background.
+  const backgroundIndex =
+    (((daysSinceRotationStart + rotationStartIndex) % CALM_BACKGROUNDS.length) + CALM_BACKGROUNDS.length) %
+    CALM_BACKGROUNDS.length;
 
-  if (testBackground) {
-    return testBackground;
-  }
-
-  return CALM_BACKGROUNDS[getLocalDayNumber() % CALM_BACKGROUNDS.length];
+  return CALM_BACKGROUNDS[backgroundIndex];
 }
 
-function getCalmBackgroundTestOverride(): (typeof CALM_BACKGROUNDS)[number] | null {
+function getCalmBackgroundRotationStartDay(): number {
+  const today = getLocalDayNumber();
+
   try {
-    const requestedKey = window.localStorage.getItem(CALM_BACKGROUND_TEST_OVERRIDE_KEY);
-    return CALM_BACKGROUNDS.find((background) => background.key === requestedKey) ?? null;
+    const storedDay = window.localStorage.getItem(CALM_BACKGROUND_ROTATION_START_DAY_KEY);
+    const parsedDay = storedDay ? Number.parseInt(storedDay, 10) : NaN;
+
+    if (Number.isFinite(parsedDay)) {
+      return parsedDay;
+    }
+
+    window.localStorage.setItem(CALM_BACKGROUND_ROTATION_START_DAY_KEY, String(today));
   } catch {
-    return null;
+    return today;
+  }
+
+  return today;
+}
+
+function getCalmBackgroundRotationStartIndex(): number {
+  try {
+    const storedIndex = window.localStorage.getItem(CALM_BACKGROUND_ROTATION_START_INDEX_KEY);
+    const parsedIndex = storedIndex ? Number.parseInt(storedIndex, 10) : NaN;
+
+    if (Number.isInteger(parsedIndex) && parsedIndex >= 0 && parsedIndex < CALM_BACKGROUNDS.length) {
+      return parsedIndex;
+    }
+
+    // Save the random offset once so reloads stay stable while different installs do not all start identically.
+    const startIndex = Math.floor(Math.random() * CALM_BACKGROUNDS.length);
+    window.localStorage.setItem(CALM_BACKGROUND_ROTATION_START_INDEX_KEY, String(startIndex));
+    return startIndex;
+  } catch {
+    return 0;
   }
 }
 
